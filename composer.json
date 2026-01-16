@@ -1,5 +1,5 @@
 {
-  "name": "fourallportal/fourallportalext",
+  "name": "fourallportal/fourallportal-typo3-extension",
   "type": "typo3-cms-extension",
   "description": "4ALLPORTAL Rest-Api extension for nnrestapi",
   "authors": [],
