@@ -3,6 +3,7 @@
   "type": "typo3-cms-extension",
   "description": "4ALLPORTAL Rest-Api extension for nnrestapi",
   "authors": [],
+  "license": "MIT",
   "require": {
     "typo3/cms-core": "^13.0",
     "nng/nnrestapi": "^13.0 || dev-13*",
