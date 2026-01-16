@@ -8,14 +8,15 @@
     "nng/nnrestapi": "^13.0 || dev-13*",
     "nng/nnhelpers": "^13.0 || dev-13*"
   },
-    "autoload": {
+  "autoload": {
     "psr-4": {
       "Fourallportal\\Fourallportalext\\": "Classes"
     }
   },
   "extra": {
     "typo3/cms": {
-      "extension-key": "fourallportal-typo3-extension"
+      "extension-key": "fourallportal-typo3-extension",
+      "skip-ter-packagist-import": false
     }
   },
   "config": {
