@@ -1,0 +1,5 @@
+plugin.tx_nnrestapi.settings.fileUploads {
+    default {
+        defaultStoragePath = 1:/
+    }
+}

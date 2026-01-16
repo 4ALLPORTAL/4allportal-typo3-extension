@@ -1,0 +1,27 @@
+{
+  "name": "fourallportal/fourallportalext",
+  "type": "typo3-cms-extension",
+  "description": "4ALLPORTAL Rest-Api extension for nnrestapi",
+  "authors": [],
+  "require": {
+    "typo3/cms-core": "^13.0",
+    "nng/nnrestapi": "^13.0 || dev-13*",
+    "nng/nnhelpers": "^13.0 || dev-13*"
+  },
+    "autoload": {
+    "psr-4": {
+      "Fourallportal\\Fourallportalext\\": "Classes"
+    }
+  },
+  "extra": {
+    "typo3/cms": {
+      "extension-key": "fourallportalext"
+    }
+  },
+  "config": {
+    "allow-plugins": {
+      "typo3/cms-composer-installers": true,
+      "typo3/class-alias-loader": true
+    }
+  }
+}
