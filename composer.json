@@ -2,7 +2,8 @@
   "name": "fourallportal/fourallportal-typo3-extension",
   "type": "typo3-cms-extension",
   "description": "4ALLPORTAL Rest-Api extension for nnrestapi",
-  "authors": [],
+  "author": "4allportal.com",
+  "version": "1.0.0",
   "license": "MIT",
   "require": {
     "typo3/cms-core": "^13.0",
