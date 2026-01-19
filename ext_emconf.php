@@ -5,6 +5,7 @@ $EM_CONF[$_EXTKEY] = [
     'description' => '4ALLPORTAL Rest-Api extension for nnrestapi',
     'category' => 'frontend',
     'author' => '4allportal.com',
+    'author_company' => '4ALLPORTAL GmbH',
     'version' => '1.0.0',
     'state' => 'stable',
     'internal' => '',
