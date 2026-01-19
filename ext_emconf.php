@@ -1,8 +1,8 @@
 <?php
 
 $EM_CONF[$_EXTKEY] = [
-    'title' => '4ALLPORTAL Rest-Api extension',
-    'description' => '4ALLPORTAL Rest-Api extension for nnrestapi',
+    'title' => '4ALLPORTAL extension',
+    'description' => 'This TYPO3 extension enables the 4allportal-typo3-connector to send files from 4ALLPORTAL to TYPO3.',
     'category' => 'frontend',
     'author' => '4allportal.com',
     'author_company' => '4ALLPORTAL GmbH',

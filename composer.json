@@ -1,7 +1,7 @@
 {
   "name": "fourallportal/fourallportal-typo3-extension",
   "type": "typo3-cms-extension",
-  "description": "4ALLPORTAL Rest-Api extension for nnrestapi",
+  "description": "This TYPO3 extension enables the 4allportal-typo3-connector to send files from 4ALLPORTAL to TYPO3.",
   "authors": [],
   "version": "1.0.0",
   "license": "MIT",
