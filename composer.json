@@ -3,12 +3,15 @@
   "type": "typo3-cms-extension",
   "description": "This TYPO3 extension enables the 4allportal-typo3-connector to send files from 4ALLPORTAL to TYPO3.",
   "authors": [],
-  "version": "1.0.2",
+  "version": "2.0.0",
   "license": "MIT",
   "require": {
-    "typo3/cms-core": "^13.0",
-    "nng/nnrestapi": "^13.0 || dev-13*",
-    "nng/nnhelpers": "^13.0 || dev-13*"
+    "typo3/cms-core": "^13.4 || ^14.0",
+    "typo3/cms-frontend": "^13.4 || ^14.0"
+  },
+  "require-dev": {
+    "typo3/cms-backend": "^13.4 || ^14.0",
+    "typo3/cms-fluid": "^13.4 || ^14.0"
   },
   "autoload": {
     "psr-4": {

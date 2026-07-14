@@ -2,12 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Fourallportal\Fourallportalext\Api;
+namespace Fourallportal\Fourallportalext\Endpoint;
 
 use Exception;
-use Nng\Nnrestapi\Annotations as Api;
-use Nng\Nnrestapi\Api\AbstractApi;
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\UploadedFileInterface;
+use TYPO3\CMS\Core\Http\JsonResponse;
 use TYPO3\CMS\Core\Resource\Enum\DuplicationBehavior;
 use TYPO3\CMS\Core\Resource\Exception\ExistingTargetFileNameException;
 use TYPO3\CMS\Core\Resource\Exception\ExistingTargetFolderException;
@@ -18,32 +19,37 @@ use TYPO3\CMS\Core\Resource\File as ResourceFile;
 use TYPO3\CMS\Core\Resource\Folder;
 use TYPO3\CMS\Core\Resource\ResourceFactory;
 use TYPO3\CMS\Core\Resource\ResourceStorage;
-use TYPO3\CMS\Core\Utility\GeneralUtility;
+use TYPO3\CMS\Core\Resource\StorageRepository;
 
 /**
- * @Api\Endpoint()
+ * FAL operations behind the `/api/files` routes.
+ *
+ * Response payloads, error messages and status codes are part of the
+ * connector API contract and must not change.
  */
-class File extends AbstractApi
+final class FileEndpoint
 {
-    private const ERROR_FILE_NOT_FOUND = 'File not found';
-    private const ERROR_UID_REQUIRED = 'uid is required';
-    private const ERROR_TARGET_PATH_REQUIRED = 'targetPath is required';
+    private const string ERROR_FILE_NOT_FOUND = 'File not found';
+    private const string ERROR_UID_REQUIRED = 'uid is required';
+    private const string ERROR_TARGET_PATH_REQUIRED = 'targetPath is required';
 
-    /**
-     * @Api\Route("POST /api/files")
-     * @Api\Upload("default")
-     * @Api\Access("fe_users")
-     */
-    public function uploadFile(): array
+    public function __construct(
+        private readonly ResourceFactory   $resourceFactory,
+        private readonly StorageRepository $storageRepository,
+    )
     {
-        $uploads = $this->request->getUploadedFiles();
+    }
 
-        $arguments = $this->request->getArguments();
-        $targetPath = $arguments['targetPath'] ?? $_POST['targetPath'] ?? '';
-        $fileName = $arguments['fileName'] ?? $_POST['fileName'] ?? '';
-        $storageUid = (int)($arguments['storageUid'] ?? $_POST['storageUid'] ?? 1);
+    public function upload(ServerRequestInterface $request): ResponseInterface
+    {
+        $uploadedFile = $this->extractFirstUploadedFile($request);
 
-        if (empty($uploads)) {
+        $arguments = (array)($request->getParsedBody() ?? []);
+        $targetPath = (string)($arguments['targetPath'] ?? '');
+        $fileName = (string)($arguments['fileName'] ?? '');
+        $storageUid = (int)($arguments['storageUid'] ?? 1);
+
+        if ($uploadedFile === null) {
             return $this->errorResponse('No file uploaded', 400);
         }
 
@@ -51,12 +57,14 @@ class File extends AbstractApi
             return $this->errorResponse(self::ERROR_TARGET_PATH_REQUIRED, 400);
         }
 
+        $tempPath = null;
         try {
-            $storage = $this->getResourceFactory()->getStorageObject($storageUid);
-            $folder = $this->getOrCreateFolder($storage, $targetPath);
+            $storage = $this->storageRepository->findByUid($storageUid);
+            if ($storage === null) {
+                return $this->errorResponse('Storage not found: ' . $storageUid, 400);
+            }
 
-            /** @var UploadedFileInterface $uploadedFile */
-            $uploadedFile = reset($uploads);
+            $folder = $this->getOrCreateFolder($storage, $targetPath);
 
             if ($uploadedFile->getError() !== UPLOAD_ERR_OK) {
                 return $this->errorResponse('Upload failed with error code: ' . $uploadedFile->getError(), 400);
@@ -72,31 +80,27 @@ class File extends AbstractApi
                 DuplicationBehavior::REPLACE
             );
 
-            return $this->fileResponse($fileObject);
-
+            return $this->jsonResponse($this->fileData($fileObject));
         } catch (ExistingTargetFileNameException) {
             return $this->errorResponse('File already exists', 409);
         } catch (Exception $e) {
             return $this->errorResponse('Upload failed: ' . $e->getMessage(), 500);
+        } finally {
+            if ($tempPath !== null && is_file($tempPath)) {
+                @unlink($tempPath);
+            }
         }
     }
 
-    /**
-     * @Api\Route("GET /api/files/{uid}")
-     * @Api\Access("fe_users")
-     */
-    public function getFile(int $uid = 0): array
+    public function get(int $uid): ResponseInterface
     {
-        $uid = $this->resolveUid($uid);
-
         if ($uid === 0) {
             return $this->errorResponse(self::ERROR_UID_REQUIRED, 400);
         }
 
         try {
-            $fileObject = $this->getResourceFactory()->getFileObject($uid);
-            return $this->fileResponse($fileObject);
-
+            $fileObject = $this->resourceFactory->getFileObject($uid);
+            return $this->jsonResponse($this->fileData($fileObject));
         } catch (FileDoesNotExistException) {
             return $this->errorResponse(self::ERROR_FILE_NOT_FOUND, 404);
         } catch (Exception $e) {
@@ -104,31 +108,21 @@ class File extends AbstractApi
         }
     }
 
-    /**
-     * @Api\Route("DELETE /api/files/{uid}")
-     * @Api\Access("fe_users")
-     */
-    public function deleteFile(int $uid = 0): array
+    public function delete(int $uid): ResponseInterface
     {
-        $uid = $this->resolveUid($uid);
-
         if ($uid === 0) {
             return $this->errorResponse(self::ERROR_UID_REQUIRED, 400);
         }
 
         try {
-            $fileObject = $this->getResourceFactory()->getFileObject($uid);
+            $fileObject = $this->resourceFactory->getFileObject($uid);
             $parentFolder = $fileObject->getParentFolder();
             $storage = $fileObject->getStorage();
 
             $storage->deleteFile($fileObject);
+            $this->deleteEmptyFolders($storage, $parentFolder);
 
-            if ($parentFolder instanceof Folder) {
-                $this->deleteEmptyFolders($storage, $parentFolder);
-            }
-
-            return ['success' => true, 'message' => 'File deleted successfully'];
-
+            return $this->jsonResponse(['success' => true, 'message' => 'File deleted successfully']);
         } catch (FileDoesNotExistException) {
             return $this->errorResponse(self::ERROR_FILE_NOT_FOUND, 404);
         } catch (Exception $e) {
@@ -136,16 +130,11 @@ class File extends AbstractApi
         }
     }
 
-    /**
-     * @Api\Route("POST /api/files/{uid}/rename")
-     * @Api\Access("fe_users")
-     */
-    public function renameFile(int $uid = 0): array
+    public function rename(int $uid, ServerRequestInterface $request): ResponseInterface
     {
-        $uid = $this->resolveUid($uid);
-        $body = $this->request->getBody();
-        $newFileName = $body['newFileName'] ?? '';
-        $conflictStrategy = $body['conflictStrategy'] ?? 'RENAME';
+        $body = $this->parseBody($request);
+        $newFileName = (string)($body['newFileName'] ?? '');
+        $conflictStrategy = (string)($body['conflictStrategy'] ?? 'RENAME');
 
         if ($uid === 0) {
             return $this->errorResponse(self::ERROR_UID_REQUIRED, 400);
@@ -156,7 +145,7 @@ class File extends AbstractApi
         }
 
         try {
-            $fileObject = $this->getResourceFactory()->getFileObject($uid);
+            $fileObject = $this->resourceFactory->getFileObject($uid);
             $previousName = $fileObject->getName();
 
             $renamedFile = $fileObject->getStorage()->renameFile(
@@ -165,14 +154,13 @@ class File extends AbstractApi
                 $this->resolveDuplicationBehavior($conflictStrategy)
             );
 
-            return [
+            return $this->jsonResponse([
                 'uid' => $renamedFile->getUid(),
                 'identifier' => $renamedFile->getIdentifier(),
                 'name' => $renamedFile->getName(),
                 'previousName' => $previousName,
                 'modifiedAt' => date('c', $renamedFile->getModificationTime()),
-            ];
-
+            ]);
         } catch (FileDoesNotExistException) {
             return $this->errorResponse(self::ERROR_FILE_NOT_FOUND, 404);
         } catch (Exception $e) {
@@ -180,17 +168,12 @@ class File extends AbstractApi
         }
     }
 
-    /**
-     * @Api\Route("POST /api/files/{uid}/move")
-     * @Api\Access("fe_users")
-     */
-    public function moveFile(int $uid = 0): array
+    public function move(int $uid, ServerRequestInterface $request): ResponseInterface
     {
-        $uid = $this->resolveUid($uid);
-        $body = $this->request->getBody();
-        $targetPath = $body['targetPath'] ?? '';
-        $newFileName = $body['newFileName'] ?? '';
-        $conflictStrategy = $body['conflictStrategy'] ?? 'REPLACE';
+        $body = $this->parseBody($request);
+        $targetPath = (string)($body['targetPath'] ?? '');
+        $newFileName = (string)($body['newFileName'] ?? '');
+        $conflictStrategy = (string)($body['conflictStrategy'] ?? 'REPLACE');
 
         if ($uid === 0) {
             return $this->errorResponse(self::ERROR_UID_REQUIRED, 400);
@@ -201,7 +184,7 @@ class File extends AbstractApi
         }
 
         try {
-            $fileObject = $this->getResourceFactory()->getFileObject($uid);
+            $fileObject = $this->resourceFactory->getFileObject($uid);
             $storage = $fileObject->getStorage();
             $previousPath = $fileObject->getIdentifier();
             $fileName = $newFileName !== '' ? $newFileName : $fileObject->getName();
@@ -215,18 +198,15 @@ class File extends AbstractApi
                 $this->resolveDuplicationBehavior($conflictStrategy)
             );
 
-            if ($oldParentFolder instanceof Folder) {
-                $this->deleteEmptyFolders($storage, $oldParentFolder);
-            }
+            $this->deleteEmptyFolders($storage, $oldParentFolder);
 
-            return [
+            return $this->jsonResponse([
                 'uid' => $movedFile->getUid(),
                 'identifier' => $movedFile->getIdentifier(),
                 'name' => $movedFile->getName(),
                 'previousPath' => $previousPath,
                 'modifiedAt' => date('c', $movedFile->getModificationTime()),
-            ];
-
+            ]);
         } catch (FileDoesNotExistException) {
             return $this->errorResponse(self::ERROR_FILE_NOT_FOUND, 404);
         } catch (Exception $e) {
@@ -234,14 +214,9 @@ class File extends AbstractApi
         }
     }
 
-    /**
-     * @Api\Route("PUT /api/files/{uid}")
-     * @Api\Access("fe_users")
-     */
-    public function updateMetadata(int $uid = 0): array
+    public function updateMetadata(int $uid, ServerRequestInterface $request): ResponseInterface
     {
-        $uid = $this->resolveUid($uid);
-        $body = $this->request->getBody();
+        $body = $this->parseBody($request);
 
         if ($uid === 0) {
             return $this->errorResponse(self::ERROR_UID_REQUIRED, 400);
@@ -252,7 +227,7 @@ class File extends AbstractApi
         }
 
         try {
-            $fileObject = $this->getResourceFactory()->getFileObject($uid);
+            $fileObject = $this->resourceFactory->getFileObject($uid);
             $metaData = $fileObject->getMetaData();
 
             $allowedFields = ['title', 'description', 'alternative', 'keywords', 'copyright'];
@@ -262,10 +237,14 @@ class File extends AbstractApi
                 }
             }
 
+            /**
+             * @noinspection PhpInternalEntityUsedInspection save() is @internal, but the only
+             * non-internal alternative (DataHandler) requires a backend user, which does not
+             * exist in this frontend API context
+             */
             $metaData->save();
 
-            return ['success' => true, 'message' => 'Metadata updated successfully'];
-
+            return $this->jsonResponse(['success' => true, 'message' => 'Metadata updated successfully']);
         } catch (FileDoesNotExistException) {
             return $this->errorResponse(self::ERROR_FILE_NOT_FOUND, 404);
         } catch (Exception $e) {
@@ -273,17 +252,37 @@ class File extends AbstractApi
         }
     }
 
-    private function resolveUid(int $uid): int
+    /**
+     * JSON bodies must be decoded from the raw body: the core request factory
+     * runs parse_str() over PUT/PATCH/DELETE bodies, which turns a JSON string
+     * into a garbage form array instead of leaving the parsed body empty.
+     */
+    private function parseBody(ServerRequestInterface $request): array
     {
-        return $uid ?: (int)($this->request->getArguments()['uid'] ?? 0);
+        if (!str_contains($request->getHeaderLine('Content-Type'), 'json')) {
+            $parsed = $request->getParsedBody();
+            if (is_array($parsed) && $parsed !== []) {
+                return $parsed;
+            }
+        }
+
+        $decoded = json_decode((string)$request->getBody(), true);
+
+        return is_array($decoded) ? $decoded : [];
     }
 
-    private function getResourceFactory(): ResourceFactory
+    private function extractFirstUploadedFile(ServerRequestInterface $request): ?UploadedFileInterface
     {
-        return GeneralUtility::makeInstance(ResourceFactory::class);
+        $uploads = $request->getUploadedFiles();
+
+        while (is_array($uploads) && $uploads !== []) {
+            $uploads = reset($uploads);
+        }
+
+        return $uploads instanceof UploadedFileInterface ? $uploads : null;
     }
 
-    private function fileResponse(ResourceFile $file): array
+    private function fileData(ResourceFile $file): array
     {
         return [
             'uid' => $file->getUid(),
@@ -298,15 +297,21 @@ class File extends AbstractApi
         ];
     }
 
-    private function errorResponse(string $message, int $statusCode): array
+    private function jsonResponse(array $data, int $statusCode = 200): ResponseInterface
     {
-        http_response_code($statusCode);
+        return new JsonResponse($data, $statusCode);
+    }
 
-        return [
-            'error' => true,
-            'message' => $message,
-            'statusCode' => $statusCode,
-        ];
+    private function errorResponse(string $message, int $statusCode): ResponseInterface
+    {
+        return $this->jsonResponse(
+            [
+                'error' => true,
+                'message' => $message,
+                'statusCode' => $statusCode,
+            ],
+            $statusCode
+        );
     }
 
     private function extractTempPath(UploadedFileInterface $uploadedFile): string
@@ -372,10 +377,7 @@ class File extends AbstractApi
 
             $parentFolder = $folder->getParentFolder();
             $storage->deleteFolder($folder, true);
-
-            if ($parentFolder instanceof Folder) {
-                $this->deleteEmptyFolders($storage, $parentFolder);
-            }
+            $this->deleteEmptyFolders($storage, $parentFolder);
         } catch (Exception) {
             // Silent fail - folder cleanup is non-critical
         }

@@ -6,10 +6,7 @@ services:
 
   Fourallportal\Fourallportalext\:
     resource: '../Classes/*'
-    exclude:
-      - '../Classes/Domain/Model/*'
-      - '../Classes/Api/*'
 
-  Fourallportal\Fourallportalext\Api\File:
+  # resolved via container->get() by TYPO3's MiddlewareDispatcher
+  Fourallportal\Fourallportalext\Middleware\ApiMiddleware:
     public: true
-    autowire: false
