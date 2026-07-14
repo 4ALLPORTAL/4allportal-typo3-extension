@@ -18,6 +18,7 @@ use TYPO3\CMS\Core\Database\Query\Restriction\EndTimeRestriction;
 use TYPO3\CMS\Core\Database\Query\Restriction\HiddenRestriction;
 use TYPO3\CMS\Core\Database\Query\Restriction\StartTimeRestriction;
 use TYPO3\CMS\Core\Http\JsonResponse;
+use TYPO3\CMS\Core\RateLimiter\RateLimiterFactory;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 /**
@@ -35,6 +36,7 @@ final class AuthEndpoint
         private readonly TokenService        $tokenService,
         private readonly ConnectionPool      $connectionPool,
         private readonly PasswordHashFactory $passwordHashFactory,
+        private readonly RateLimiterFactory  $rateLimiterFactory,
     )
     {
     }
@@ -44,6 +46,24 @@ final class AuthEndpoint
      */
     public function handle(ServerRequestInterface $request): ResponseInterface
     {
+        $limiter = $this->rateLimiterFactory->createRequestBasedLimiter($request, [
+            'id' => 'fourallportal-api-auth',
+            'policy' => 'sliding_window',
+            'limit' => 20,
+            'interval' => '5 minutes',
+        ]);
+
+        if (!$limiter->consume()->isAccepted()) {
+            return new JsonResponse(
+                [
+                    'status' => 429,
+                    'error' => 'Too many authentication attempts. Please try again later.',
+                    'code' => '',
+                ],
+                429
+            );
+        }
+
         $body = json_decode((string)$request->getBody(), true);
         $username = is_array($body) ? (string)($body['username'] ?? '') : '';
         $password = is_array($body) ? (string)($body['password'] ?? '') : '';
@@ -62,6 +82,10 @@ final class AuthEndpoint
                 403
             );
         }
+
+        // successful login clears the counter, so the limit only ever bites
+        // repeated failed attempts, never legitimate connector traffic
+        $limiter->reset();
 
         $lastLogin = (int)($GLOBALS['EXEC_TIME'] ?? time());
         $this->updateLastLogin((int)$user['uid'], $lastLogin);
