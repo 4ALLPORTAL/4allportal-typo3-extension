@@ -123,9 +123,15 @@ final class ApiMiddleware implements MiddlewareInterface, LoggerAwareInterface
             return false;
         }
 
-        $uid = $this->tokenService->validate(substr($header, strlen('Bearer ')));
+        $payload = $this->tokenService->validate(substr($header, strlen('Bearer ')));
 
-        return $uid !== null && $this->authEndpoint->findActiveUser($uid) !== null;
+        if ($payload === null) {
+            return false;
+        }
+
+        $user = $this->authEndpoint->findActiveUser($payload['uid']);
+
+        return $user !== null && $this->tokenService->matchesPassword($payload, (string)$user['password']);
     }
 
     /**

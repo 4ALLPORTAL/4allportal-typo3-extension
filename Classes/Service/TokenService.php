@@ -10,9 +10,10 @@ use TYPO3\CMS\Core\Exception\Crypto\InvalidHashStringException;
 /**
  * Issues and validates stateless bearer tokens for the file API.
  *
- * A token is a base64url-encoded JSON payload (fe_user uid + expiry timestamp)
- * signed with an HMAC based on the TYPO3 encryption key. No server-side session
- * state is required; the connector re-authenticates automatically on 401/403.
+ * A token is a base64url-encoded JSON payload (fe_user uid, expiry timestamp
+ * and a fingerprint of the user's password hash) signed with an HMAC based on
+ * the TYPO3 encryption key. No server-side session state is required; the
+ * connector re-authenticates automatically on 401/403.
  */
 final class TokenService
 {
@@ -23,21 +24,31 @@ final class TokenService
     {
     }
 
-    public function issue(int $frontendUserUid, int $ttlSeconds = self::DEFAULT_TTL_SECONDS): string
-    {
+    /**
+     * @param string $passwordHash the fe_user's stored password hash, bound
+     *                             into the token so it expires on password change
+     */
+    public function issue(
+        int $frontendUserUid,
+        string $passwordHash,
+        int $ttlSeconds = self::DEFAULT_TTL_SECONDS
+    ): string {
         $payload = (string)json_encode([
             'uid' => $frontendUserUid,
             'exp' => time() + $ttlSeconds,
+            'pwf' => $this->passwordFingerprint($passwordHash),
         ]);
 
         return $this->hashService->appendHmac($this->base64UrlEncode($payload), self::HMAC_CONTEXT);
     }
 
     /**
-     * Returns the fe_user uid for a valid token, or null if the token
-     * is tampered with, malformed or expired.
+     * Returns the token payload (`uid` and password fingerprint `pwf`) for a
+     * valid token, or null if it is tampered with, malformed or expired.
+     *
+     * @return array{uid: int, pwf: string}|null
      */
-    public function validate(string $token): ?int
+    public function validate(string $token): ?array
     {
         try {
             $encodedPayload = $this->hashService->validateAndStripHmac($token, self::HMAC_CONTEXT);
@@ -45,7 +56,7 @@ final class TokenService
             return null;
         }
 
-        $payload = json_decode($this->base64UrlDecode($encodedPayload), true, 2);
+        $payload = json_decode($this->base64UrlDecode($encodedPayload), true, 3);
 
         if (!is_array($payload)) {
             return null;
@@ -53,12 +64,29 @@ final class TokenService
 
         $uid = (int)($payload['uid'] ?? 0);
         $expiresAt = (int)($payload['exp'] ?? 0);
+        $fingerprint = (string)($payload['pwf'] ?? '');
 
-        if ($uid <= 0 || $expiresAt < time()) {
+        if ($uid <= 0 || $fingerprint === '' || $expiresAt < time()) {
             return null;
         }
 
-        return $uid;
+        return ['uid' => $uid, 'pwf' => $fingerprint];
+    }
+
+    /**
+     * Whether the token was issued for the given (current) password hash.
+     * A password change rotates the hash and thus invalidates old tokens.
+     */
+    public function matchesPassword(array $payload, string $currentPasswordHash): bool
+    {
+        return hash_equals($this->passwordFingerprint($currentPasswordHash), (string)($payload['pwf'] ?? ''));
+    }
+
+    private function passwordFingerprint(string $passwordHash): string
+    {
+        // derive a short, non-reversible fingerprint - the raw hash never
+        // travels inside the token
+        return substr(hash('sha256', $passwordHash), 0, 16);
     }
 
     private function base64UrlEncode(string $value): string

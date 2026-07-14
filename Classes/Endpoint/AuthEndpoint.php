@@ -70,7 +70,7 @@ final class AuthEndpoint
             'uid' => (int)$user['uid'],
             'username' => (string)$user['username'],
             'usergroup' => GeneralUtility::intExplode(',', (string)$user['usergroup'], true),
-            'token' => $this->tokenService->issue((int)$user['uid']),
+            'token' => $this->tokenService->issue((int)$user['uid'], (string)$user['password']),
             'first_name' => (string)($user['first_name'] ?? ''),
             'last_name' => (string)($user['last_name'] ?? ''),
             'lastlogin' => $lastLogin,
