@@ -57,6 +57,13 @@ final class FileEndpoint
             return $this->errorResponse(self::ERROR_TARGET_PATH_REQUIRED, 400);
         }
 
+        // uid 0 resolves to the writable fallback storage rooted at the public
+        // web root, which would allow writing anywhere below it - only accept
+        // real, configured storages
+        if ($storageUid < 1) {
+            return $this->errorResponse('Invalid storageUid: ' . $storageUid, 400);
+        }
+
         $tempPath = null;
         try {
             $storage = $this->storageRepository->findByUid($storageUid);
