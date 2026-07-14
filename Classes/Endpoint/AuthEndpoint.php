@@ -63,6 +63,9 @@ final class AuthEndpoint
             );
         }
 
+        $lastLogin = (int)($GLOBALS['EXEC_TIME'] ?? time());
+        $this->updateLastLogin((int)$user['uid'], $lastLogin);
+
         return new JsonResponse([
             'uid' => (int)$user['uid'],
             'username' => (string)$user['username'],
@@ -70,8 +73,25 @@ final class AuthEndpoint
             'token' => $this->tokenService->issue((int)$user['uid']),
             'first_name' => (string)($user['first_name'] ?? ''),
             'last_name' => (string)($user['last_name'] ?? ''),
-            'lastlogin' => (int)($user['lastlogin'] ?? 0),
+            'lastlogin' => $lastLogin,
         ]);
+    }
+
+    /**
+     * Records the successful login. TYPO3's regular authentication service
+     * maintains `fe_users.lastlogin`, which this endpoint bypasses, so it is
+     * updated here to keep the field meaningful.
+     *
+     * @throws Exception
+     */
+    private function updateLastLogin(int $uid, int $timestamp): void
+    {
+        $connection = $this->connectionPool->getConnectionForTable(self::TABLE_FRONTEND_USERS);
+        $connection->update(
+            self::TABLE_FRONTEND_USERS,
+            ['lastlogin' => $timestamp],
+            ['uid' => $uid]
+        );
     }
 
     /**
