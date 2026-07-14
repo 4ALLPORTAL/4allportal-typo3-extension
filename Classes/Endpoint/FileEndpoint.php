@@ -8,6 +8,8 @@ use Exception;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\UploadedFileInterface;
+use Psr\Log\LoggerAwareInterface;
+use Psr\Log\LoggerAwareTrait;
 use TYPO3\CMS\Core\Http\JsonResponse;
 use TYPO3\CMS\Core\Resource\Enum\DuplicationBehavior;
 use TYPO3\CMS\Core\Resource\Exception\ExistingTargetFileNameException;
@@ -27,8 +29,10 @@ use TYPO3\CMS\Core\Resource\StorageRepository;
  * Response payloads, error messages and status codes are part of the
  * connector API contract and must not change.
  */
-final class FileEndpoint
+final class FileEndpoint implements LoggerAwareInterface
 {
+    use LoggerAwareTrait;
+
     private const ERROR_FILE_NOT_FOUND = 'File not found';
     private const ERROR_UID_REQUIRED = 'uid is required';
     private const ERROR_TARGET_PATH_REQUIRED = 'targetPath is required';
@@ -91,7 +95,7 @@ final class FileEndpoint
         } catch (ExistingTargetFileNameException) {
             return $this->errorResponse('File already exists', 409);
         } catch (Exception $e) {
-            return $this->errorResponse('Upload failed: ' . $e->getMessage(), 500);
+            return $this->serverError('Upload failed', $e);
         } finally {
             if ($tempPath !== null && is_file($tempPath)) {
                 @unlink($tempPath);
@@ -111,7 +115,7 @@ final class FileEndpoint
         } catch (FileDoesNotExistException) {
             return $this->errorResponse(self::ERROR_FILE_NOT_FOUND, 404);
         } catch (Exception $e) {
-            return $this->errorResponse('Failed to retrieve file: ' . $e->getMessage(), 500);
+            return $this->serverError('Failed to retrieve file', $e);
         }
     }
 
@@ -133,7 +137,7 @@ final class FileEndpoint
         } catch (FileDoesNotExistException) {
             return $this->errorResponse(self::ERROR_FILE_NOT_FOUND, 404);
         } catch (Exception $e) {
-            return $this->errorResponse('Failed to delete file: ' . $e->getMessage(), 500);
+            return $this->serverError('Failed to delete file', $e);
         }
     }
 
@@ -171,7 +175,7 @@ final class FileEndpoint
         } catch (FileDoesNotExistException) {
             return $this->errorResponse(self::ERROR_FILE_NOT_FOUND, 404);
         } catch (Exception $e) {
-            return $this->errorResponse('Failed to rename file: ' . $e->getMessage(), 500);
+            return $this->serverError('Failed to rename file', $e);
         }
     }
 
@@ -217,7 +221,7 @@ final class FileEndpoint
         } catch (FileDoesNotExistException) {
             return $this->errorResponse(self::ERROR_FILE_NOT_FOUND, 404);
         } catch (Exception $e) {
-            return $this->errorResponse('Failed to move file: ' . $e->getMessage(), 500);
+            return $this->serverError('Failed to move file', $e);
         }
     }
 
@@ -255,7 +259,7 @@ final class FileEndpoint
         } catch (FileDoesNotExistException) {
             return $this->errorResponse(self::ERROR_FILE_NOT_FOUND, 404);
         } catch (Exception $e) {
-            return $this->errorResponse('Failed to update metadata: ' . $e->getMessage(), 500);
+            return $this->serverError('Failed to update metadata', $e);
         }
     }
 
@@ -319,6 +323,21 @@ final class FileEndpoint
             ],
             $statusCode
         );
+    }
+
+    /**
+     * Logs the exception detail server-side and returns a generic 500 so
+     * server paths and driver internals never reach the client.
+     */
+    private function serverError(string $message, Exception $exception): ResponseInterface
+    {
+        $this->logger?->error('{message}: {detail}', [
+            'message' => $message,
+            'detail' => $exception->getMessage(),
+            'exception' => $exception,
+        ]);
+
+        return $this->errorResponse($message, 500);
     }
 
     private function extractTempPath(UploadedFileInterface $uploadedFile): string
