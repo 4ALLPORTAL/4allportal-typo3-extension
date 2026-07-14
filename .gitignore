@@ -1,4 +1,6 @@
 /vendor/
+/public/
+/var/
 composer.phar
 
 /node_modules/
@@ -9,12 +11,10 @@ composer.phar
 /build/
 /dest/
 
-.docker/
-.gradle/
-
 .idea/
 *.iml
 .vscode/
+.docker/
 
 .DS_Store
 ._.DS_Store
