@@ -397,6 +397,10 @@ final class FileEndpoint implements LoggerAwareInterface
     private function deleteEmptyFolders(ResourceStorage $storage, Folder $folder): void
     {
         try {
+            if ($folder->getIdentifier() === $storage->getRootLevelFolder()->getIdentifier()) {
+                return;
+            }
+
             if ($folder->getFileCount() > 0 || count($folder->getSubfolders()) > 0) {
                 return;
             }
