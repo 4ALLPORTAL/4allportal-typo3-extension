@@ -16,8 +16,8 @@ use TYPO3\CMS\Core\Exception\Crypto\InvalidHashStringException;
  */
 final class TokenService
 {
-    public const int DEFAULT_TTL_SECONDS = 3600;
-    private const string HMAC_CONTEXT = 'fourallportal-api-token';
+    public const DEFAULT_TTL_SECONDS = 3600;
+    private const HMAC_CONTEXT = 'fourallportal-api-token';
 
     public function __construct(private readonly HashService $hashService)
     {

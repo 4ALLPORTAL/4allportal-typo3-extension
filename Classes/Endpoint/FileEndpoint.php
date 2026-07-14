@@ -29,9 +29,9 @@ use TYPO3\CMS\Core\Resource\StorageRepository;
  */
 final class FileEndpoint
 {
-    private const string ERROR_FILE_NOT_FOUND = 'File not found';
-    private const string ERROR_UID_REQUIRED = 'uid is required';
-    private const string ERROR_TARGET_PATH_REQUIRED = 'targetPath is required';
+    private const ERROR_FILE_NOT_FOUND = 'File not found';
+    private const ERROR_UID_REQUIRED = 'uid is required';
+    private const ERROR_TARGET_PATH_REQUIRED = 'targetPath is required';
 
     public function __construct(
         private readonly ResourceFactory   $resourceFactory,

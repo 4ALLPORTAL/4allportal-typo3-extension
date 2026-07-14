@@ -67,7 +67,7 @@ field mapping, download profiles and sharing triggers) are available in the
 
 | Extension | TYPO3     | PHP                    |
 |-----------|-----------|------------------------|
-| 2.x       | 13.4 / 14 | per TYPO3 requirements |
+| 2.x       | 13.4 / 14 | >= 8.2                 |
 | 1.x       | 13        | per TYPO3 requirements |
 
 Version 1.x relied on the third-party extension `nng/nnrestapi`; since 2.0 the extension is

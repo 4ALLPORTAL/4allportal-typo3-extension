@@ -29,7 +29,7 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
  */
 final class AuthEndpoint
 {
-    private const string TABLE_FRONTEND_USERS = 'fe_users';
+    private const TABLE_FRONTEND_USERS = 'fe_users';
 
     public function __construct(
         private readonly TokenService        $tokenService,
