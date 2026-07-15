@@ -8,9 +8,6 @@ composer.phar
 /npm-debug.log
 /yarn-error.log
 
-/build/
-/dest/
-
 .idea/
 *.iml
 .vscode/

@@ -12,12 +12,23 @@
   },
   "require-dev": {
     "typo3/cms-backend": "^13.4 || ^14.0",
-    "typo3/cms-fluid": "^13.4 || ^14.0"
+    "typo3/cms-fluid": "^13.4 || ^14.0",
+    "phpunit/phpunit": "^11",
+    "phpmd/phpmd": "^2.15",
+    "laravel/pint": "^1.29"
   },
   "autoload": {
     "psr-4": {
       "Fourallportal\\Fourallportalext\\": "Classes"
     }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Fourallportal\\Fourallportalext\\Tests\\": "Tests"
+    }
+  },
+  "scripts": {
+    "test:unit": "phpunit -c Build/phpunit/UnitTests.xml"
   },
   "extra": {
     "typo3/cms": {
