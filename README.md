@@ -76,18 +76,14 @@ dependency-free apart from TYPO3 itself.
 ## Releasing
 
 Releases are driven by git tags following [semantic versioning](https://semver.org). Bump the
-version in both `composer.json` and `ext_emconf.php` (they must match), commit, then tag:
-
-```bash
-git tag 2.0.0 && git push origin 2.0.0
-```
+version in both `composer.json` and `ext_emconf.php` (they must match), commit, then tag.
 
 - **Packagist** picks up the new tag automatically via its GitHub webhook and publishes the
   version - no manual step. Consumers then get it through `composer require`.
 - **TER** (TYPO3 Extension Repository) needs an upload archive. Build it from the tag:
 
   ```bash
-  composer ter:zip 2.0.0
+  composer ter:zip v2.0.0
   ```
 
   This writes `Build/dist/fourallportal_typo3_extension_<version>.zip` (with `ext_emconf.php`

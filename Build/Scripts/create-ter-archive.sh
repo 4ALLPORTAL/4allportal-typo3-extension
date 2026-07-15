@@ -26,9 +26,16 @@ cd "$ROOT"
 REF="${1:-HEAD}"
 DIST_DIR="Build/dist"
 
-key=$(php -r '$c = json_decode(file_get_contents("composer.json"), true); echo $c["extra"]["typo3/cms"]["extension-key"] ?? "";')
-version=$(php -r '$c = json_decode(file_get_contents("composer.json"), true); echo $c["version"] ?? "";')
-emconfVersion=$(php -r '$_EXTKEY = "x"; $EM_CONF = []; include "ext_emconf.php"; echo $EM_CONF["x"]["version"] ?? "";')
+if ! git rev-parse --verify --quiet "$REF^{commit}" >/dev/null; then
+  echo "error: '$REF' is not a valid git ref (tags in this repo use a 'v' prefix, e.g. v1.0.2)" >&2
+  exit 1
+fi
+
+# read metadata from the archived ref, not the working tree, so name and
+# contents always match the version being released
+key=$(git show "$REF:composer.json" | php -r '$c = json_decode(stream_get_contents(STDIN), true); echo $c["extra"]["typo3/cms"]["extension-key"] ?? "";')
+version=$(git show "$REF:composer.json" | php -r '$c = json_decode(stream_get_contents(STDIN), true); echo $c["version"] ?? "";')
+emconfVersion=$(git show "$REF:ext_emconf.php" | php -r '$s = stream_get_contents(STDIN); echo preg_match("/[\x27\"]version[\x27\"]\s*=>\s*[\x27\"]([^\x27\"]+)/", $s, $m) ? $m[1] : "";')
 
 if [ -z "$key" ]; then
   echo "error: extension-key not found in composer.json (extra.typo3/cms.extension-key)" >&2
