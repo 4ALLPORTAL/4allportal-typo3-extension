@@ -36,6 +36,31 @@ jobs:
       - name: Code style (Pint)
         run: vendor/bin/pint --test
 
+  security:
+    name: Security
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # full history so the secret scan covers every commit
+          fetch-depth: 0
+
+      - name: Secret scan (gitleaks)
+        run: |
+          docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:latest \
+            detect --source=/repo --redact --no-banner
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: intl, mbstring, pdo, pdo_sqlite, sodium, dom, xml
+          coverage: none
+          tools: composer:v2
+
+      - name: Audit dependencies for known vulnerabilities
+        run: composer audit --locked
+
   test:
     name: Tests (PHP ${{ matrix.php }}, TYPO3 ${{ matrix.typo3 }})
     runs-on: ubuntu-latest
