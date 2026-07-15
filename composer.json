@@ -28,7 +28,8 @@
     }
   },
   "scripts": {
-    "test:unit": "phpunit -c Build/phpunit/UnitTests.xml"
+    "test:unit": "phpunit -c Build/phpunit/UnitTests.xml",
+    "ter:zip": "Build/Scripts/create-ter-archive.sh"
   },
   "extra": {
     "typo3/cms": {

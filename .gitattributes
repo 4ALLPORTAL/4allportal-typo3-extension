@@ -1,0 +1,12 @@
+# Files excluded from `git archive` exports (TER release ZIP).
+# Everything not listed here ends up in the archive, so runtime code
+# (Classes, Configuration, Resources), ext_emconf.php, composer.json,
+# LICENSE and README stay in.
+/.github/           export-ignore
+/Build/             export-ignore
+/Tests/             export-ignore
+/CODEOWNERS         export-ignore
+/.gitignore         export-ignore
+/.gitattributes     export-ignore
+/composer.lock      export-ignore
+/pint.json          export-ignore
