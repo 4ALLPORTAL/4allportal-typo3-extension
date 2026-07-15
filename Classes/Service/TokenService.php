@@ -31,9 +31,9 @@ final class TokenService
     public function issue(
         int $frontendUserUid,
         string $passwordHash,
-        int $ttlSeconds = self::DEFAULT_TTL_SECONDS
+        int $ttlSeconds = self::DEFAULT_TTL_SECONDS,
     ): string {
-        $payload = (string)json_encode([
+        $payload = (string) json_encode([
             'uid' => $frontendUserUid,
             'exp' => time() + $ttlSeconds,
             'pwf' => $this->passwordFingerprint($passwordHash),
@@ -62,11 +62,11 @@ final class TokenService
             return null;
         }
 
-        $uid = (int)($payload['uid'] ?? 0);
-        $expiresAt = (int)($payload['exp'] ?? 0);
-        $fingerprint = (string)($payload['pwf'] ?? '');
+        $uid = (int) ($payload['uid'] ?? 0);
+        $expiresAt = (int) ($payload['exp'] ?? 0);
+        $fingerprint = (string) ($payload['pwf'] ?? '');
 
-        if ($uid <= 0 || $fingerprint === '' || $expiresAt < time()) {
+        if ($uid <= 0 || '' === $fingerprint || $expiresAt < time()) {
             return null;
         }
 
@@ -79,14 +79,14 @@ final class TokenService
      */
     public function matchesPassword(array $payload, string $currentPasswordHash): bool
     {
-        return hash_equals($this->passwordFingerprint($currentPasswordHash), (string)($payload['pwf'] ?? ''));
+        return hash_equals($this->passwordFingerprint($currentPasswordHash), (string) ($payload['pwf'] ?? ''));
     }
 
     private function passwordFingerprint(string $passwordHash): string
     {
         // keyed HMAC (encryption key + context) so the fingerprint in the
         // readable token payload leaks nothing about the stored password hash
-        $secret = ($GLOBALS['TYPO3_CONF_VARS']['SYS']['encryptionKey'] ?? '') . self::HMAC_CONTEXT;
+        $secret = ($GLOBALS['TYPO3_CONF_VARS']['SYS']['encryptionKey'] ?? '').self::HMAC_CONTEXT;
 
         return substr(hash_hmac('sha256', $passwordHash, $secret), 0, 32);
     }

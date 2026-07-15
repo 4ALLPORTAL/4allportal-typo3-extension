@@ -51,7 +51,7 @@ final class TokenServiceTest extends TestCase
     {
         $token = $this->subject->issue(42, self::PASSWORD_HASH);
 
-        self::assertNull($this->subject->validate($token . 'x'));
+        self::assertNull($this->subject->validate($token.'x'));
         self::assertNull($this->subject->validate(substr($token, 1)));
     }
 

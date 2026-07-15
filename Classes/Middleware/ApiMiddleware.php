@@ -14,7 +14,6 @@ use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerAwareTrait;
-use Throwable;
 use TYPO3\CMS\Core\Http\JsonResponse;
 use TYPO3\CMS\Core\Http\NormalizedParams;
 
@@ -39,21 +38,20 @@ final class ApiMiddleware implements MiddlewareInterface, LoggerAwareInterface
         private readonly AuthEndpoint $authEndpoint,
         private readonly FileEndpoint $fileEndpoint,
         private readonly TokenService $tokenService,
-    )
-    {
+    ) {
     }
 
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
         $path = $this->resolveApiPath($request);
 
-        if ($path !== '/api/auth' && !str_starts_with($path, '/api/files')) {
+        if ('/api/auth' !== $path && !str_starts_with($path, '/api/files')) {
             return $handler->handle($request);
         }
 
         try {
             return $this->dispatch($request->getMethod(), $path, $request);
-        } catch (Throwable $e) {
+        } catch (\Throwable $e) {
             $this->logger?->error('Unhandled exception in file API: {message}', [
                 'message' => $e->getMessage(),
                 'exception' => $e,
@@ -75,20 +73,20 @@ final class ApiMiddleware implements MiddlewareInterface, LoggerAwareInterface
      */
     private function dispatch(string $method, string $path, ServerRequestInterface $request): ResponseInterface
     {
-        if ($path === '/api/auth') {
-            return $method === 'POST' ? $this->authEndpoint->handle($request) : $this->notFound();
+        if ('/api/auth' === $path) {
+            return 'POST' === $method ? $this->authEndpoint->handle($request) : $this->notFound();
         }
 
         if (!$this->isAuthenticated($request)) {
             return $this->unauthorized();
         }
 
-        if ($path === '/api/files') {
-            return $method === 'POST' ? $this->fileEndpoint->upload($request) : $this->notFound();
+        if ('/api/files' === $path) {
+            return 'POST' === $method ? $this->fileEndpoint->upload($request) : $this->notFound();
         }
 
-        if (preg_match('#^/api/files/(\d+)$#', $path, $matches) === 1) {
-            $uid = (int)$matches[1];
+        if (1 === preg_match('#^/api/files/(\d+)$#', $path, $matches)) {
+            $uid = (int) $matches[1];
 
             return match ($method) {
                 'GET' => $this->fileEndpoint->get($uid),
@@ -98,10 +96,10 @@ final class ApiMiddleware implements MiddlewareInterface, LoggerAwareInterface
             };
         }
 
-        if ($method === 'POST' && preg_match('#^/api/files/(\d+)/(rename|move)$#', $path, $matches) === 1) {
-            $uid = (int)$matches[1];
+        if ('POST' === $method && 1 === preg_match('#^/api/files/(\d+)/(rename|move)$#', $path, $matches)) {
+            $uid = (int) $matches[1];
 
-            return $matches[2] === 'rename'
+            return 'rename' === $matches[2]
                 ? $this->fileEndpoint->rename($uid, $request)
                 : $this->fileEndpoint->move($uid, $request);
         }
@@ -125,13 +123,13 @@ final class ApiMiddleware implements MiddlewareInterface, LoggerAwareInterface
 
         $payload = $this->tokenService->validate(substr($header, strlen('Bearer ')));
 
-        if ($payload === null) {
+        if (null === $payload) {
             return false;
         }
 
         $user = $this->authEndpoint->findActiveUser($payload['uid']);
 
-        return $user !== null && $this->tokenService->matchesPassword($payload, (string)$user['password']);
+        return null !== $user && $this->tokenService->matchesPassword($payload, (string) $user['password']);
     }
 
     /**
@@ -144,9 +142,9 @@ final class ApiMiddleware implements MiddlewareInterface, LoggerAwareInterface
     {
         $header = $request->getHeaderLine('Authorization');
 
-        if ($header === '' && function_exists('apache_request_headers')) {
+        if ('' === $header && function_exists('apache_request_headers')) {
             foreach (apache_request_headers() as $name => $value) {
-                if (strtolower($name) === 'authorization') {
+                if ('authorization' === strtolower($name)) {
                     return $value;
                 }
             }
@@ -166,7 +164,7 @@ final class ApiMiddleware implements MiddlewareInterface, LoggerAwareInterface
 
         if ($normalizedParams instanceof NormalizedParams) {
             $sitePath = rtrim($normalizedParams->getSitePath(), '/');
-            if ($sitePath !== '' && str_starts_with($path, $sitePath)) {
+            if ('' !== $sitePath && str_starts_with($path, $sitePath)) {
                 $path = substr($path, strlen($sitePath));
             }
         }

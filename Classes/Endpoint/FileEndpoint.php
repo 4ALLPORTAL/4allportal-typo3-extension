@@ -38,26 +38,25 @@ final class FileEndpoint implements LoggerAwareInterface
     private const ERROR_TARGET_PATH_REQUIRED = 'targetPath is required';
 
     public function __construct(
-        private readonly ResourceFactory   $resourceFactory,
+        private readonly ResourceFactory $resourceFactory,
         private readonly StorageRepository $storageRepository,
-    )
-    {
+    ) {
     }
 
     public function upload(ServerRequestInterface $request): ResponseInterface
     {
         $uploadedFile = $this->extractFirstUploadedFile($request);
 
-        $arguments = (array)($request->getParsedBody() ?? []);
-        $targetPath = (string)($arguments['targetPath'] ?? '');
-        $fileName = (string)($arguments['fileName'] ?? '');
-        $storageUid = (int)($arguments['storageUid'] ?? 1);
+        $arguments = (array) ($request->getParsedBody() ?? []);
+        $targetPath = (string) ($arguments['targetPath'] ?? '');
+        $fileName = (string) ($arguments['fileName'] ?? '');
+        $storageUid = (int) ($arguments['storageUid'] ?? 1);
 
-        if ($uploadedFile === null) {
+        if (null === $uploadedFile) {
             return $this->errorResponse('No file uploaded', 400);
         }
 
-        if ($targetPath === '') {
+        if ('' === $targetPath) {
             return $this->errorResponse(self::ERROR_TARGET_PATH_REQUIRED, 400);
         }
 
@@ -65,23 +64,23 @@ final class FileEndpoint implements LoggerAwareInterface
         // web root, which would allow writing anywhere below it - only accept
         // real, configured storages
         if ($storageUid < 1) {
-            return $this->errorResponse('Invalid storageUid: ' . $storageUid, 400);
+            return $this->errorResponse('Invalid storageUid: '.$storageUid, 400);
         }
 
         $tempPath = null;
         try {
             $storage = $this->storageRepository->findByUid($storageUid);
-            if ($storage === null) {
-                return $this->errorResponse('Storage not found: ' . $storageUid, 400);
+            if (null === $storage) {
+                return $this->errorResponse('Storage not found: '.$storageUid, 400);
             }
 
             $folder = $this->getOrCreateFolder($storage, $targetPath);
 
-            if ($uploadedFile->getError() !== UPLOAD_ERR_OK) {
-                return $this->errorResponse('Upload failed with error code: ' . $uploadedFile->getError(), 400);
+            if (UPLOAD_ERR_OK !== $uploadedFile->getError()) {
+                return $this->errorResponse('Upload failed with error code: '.$uploadedFile->getError(), 400);
             }
 
-            $finalFileName = $fileName !== '' ? $fileName : ($uploadedFile->getClientFilename() ?? 'unnamed');
+            $finalFileName = '' !== $fileName ? $fileName : ($uploadedFile->getClientFilename() ?? 'unnamed');
             $tempPath = $this->extractTempPath($uploadedFile);
 
             $fileObject = $storage->addFile(
@@ -94,10 +93,10 @@ final class FileEndpoint implements LoggerAwareInterface
             return $this->jsonResponse($this->fileData($fileObject));
         } catch (ExistingTargetFileNameException) {
             return $this->errorResponse('File already exists', 409);
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             return $this->serverError('Upload failed', $e);
         } finally {
-            if ($tempPath !== null && is_file($tempPath)) {
+            if (null !== $tempPath && is_file($tempPath)) {
                 @unlink($tempPath);
             }
         }
@@ -105,23 +104,24 @@ final class FileEndpoint implements LoggerAwareInterface
 
     public function get(int $uid): ResponseInterface
     {
-        if ($uid === 0) {
+        if (0 === $uid) {
             return $this->errorResponse(self::ERROR_UID_REQUIRED, 400);
         }
 
         try {
             $fileObject = $this->resourceFactory->getFileObject($uid);
+
             return $this->jsonResponse($this->fileData($fileObject));
         } catch (FileDoesNotExistException) {
             return $this->errorResponse(self::ERROR_FILE_NOT_FOUND, 404);
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             return $this->serverError('Failed to retrieve file', $e);
         }
     }
 
     public function delete(int $uid): ResponseInterface
     {
-        if ($uid === 0) {
+        if (0 === $uid) {
             return $this->errorResponse(self::ERROR_UID_REQUIRED, 400);
         }
 
@@ -136,7 +136,7 @@ final class FileEndpoint implements LoggerAwareInterface
             return $this->jsonResponse(['success' => true, 'message' => 'File deleted successfully']);
         } catch (FileDoesNotExistException) {
             return $this->errorResponse(self::ERROR_FILE_NOT_FOUND, 404);
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             return $this->serverError('Failed to delete file', $e);
         }
     }
@@ -144,14 +144,14 @@ final class FileEndpoint implements LoggerAwareInterface
     public function rename(int $uid, ServerRequestInterface $request): ResponseInterface
     {
         $body = $this->parseBody($request);
-        $newFileName = (string)($body['newFileName'] ?? '');
-        $conflictStrategy = (string)($body['conflictStrategy'] ?? 'RENAME');
+        $newFileName = (string) ($body['newFileName'] ?? '');
+        $conflictStrategy = (string) ($body['conflictStrategy'] ?? 'RENAME');
 
-        if ($uid === 0) {
+        if (0 === $uid) {
             return $this->errorResponse(self::ERROR_UID_REQUIRED, 400);
         }
 
-        if ($newFileName === '') {
+        if ('' === $newFileName) {
             return $this->errorResponse('newFileName is required', 400);
         }
 
@@ -174,7 +174,7 @@ final class FileEndpoint implements LoggerAwareInterface
             ]);
         } catch (FileDoesNotExistException) {
             return $this->errorResponse(self::ERROR_FILE_NOT_FOUND, 404);
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             return $this->serverError('Failed to rename file', $e);
         }
     }
@@ -182,15 +182,15 @@ final class FileEndpoint implements LoggerAwareInterface
     public function move(int $uid, ServerRequestInterface $request): ResponseInterface
     {
         $body = $this->parseBody($request);
-        $targetPath = (string)($body['targetPath'] ?? '');
-        $newFileName = (string)($body['newFileName'] ?? '');
-        $conflictStrategy = (string)($body['conflictStrategy'] ?? 'REPLACE');
+        $targetPath = (string) ($body['targetPath'] ?? '');
+        $newFileName = (string) ($body['newFileName'] ?? '');
+        $conflictStrategy = (string) ($body['conflictStrategy'] ?? 'REPLACE');
 
-        if ($uid === 0) {
+        if (0 === $uid) {
             return $this->errorResponse(self::ERROR_UID_REQUIRED, 400);
         }
 
-        if ($targetPath === '') {
+        if ('' === $targetPath) {
             return $this->errorResponse(self::ERROR_TARGET_PATH_REQUIRED, 400);
         }
 
@@ -198,7 +198,7 @@ final class FileEndpoint implements LoggerAwareInterface
             $fileObject = $this->resourceFactory->getFileObject($uid);
             $storage = $fileObject->getStorage();
             $previousPath = $fileObject->getIdentifier();
-            $fileName = $newFileName !== '' ? $newFileName : $fileObject->getName();
+            $fileName = '' !== $newFileName ? $newFileName : $fileObject->getName();
             $oldParentFolder = $fileObject->getParentFolder();
 
             $targetFolder = $this->getOrCreateFolder($storage, $targetPath);
@@ -220,7 +220,7 @@ final class FileEndpoint implements LoggerAwareInterface
             ]);
         } catch (FileDoesNotExistException) {
             return $this->errorResponse(self::ERROR_FILE_NOT_FOUND, 404);
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             return $this->serverError('Failed to move file', $e);
         }
     }
@@ -229,7 +229,7 @@ final class FileEndpoint implements LoggerAwareInterface
     {
         $body = $this->parseBody($request);
 
-        if ($uid === 0) {
+        if (0 === $uid) {
             return $this->errorResponse(self::ERROR_UID_REQUIRED, 400);
         }
 
@@ -248,7 +248,7 @@ final class FileEndpoint implements LoggerAwareInterface
                 }
             }
 
-            /**
+            /*
              * @noinspection PhpInternalEntityUsedInspection save() is @internal, but the only
              * non-internal alternative (DataHandler) requires a backend user, which does not
              * exist in this frontend API context
@@ -258,7 +258,7 @@ final class FileEndpoint implements LoggerAwareInterface
             return $this->jsonResponse(['success' => true, 'message' => 'Metadata updated successfully']);
         } catch (FileDoesNotExistException) {
             return $this->errorResponse(self::ERROR_FILE_NOT_FOUND, 404);
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             return $this->serverError('Failed to update metadata', $e);
         }
     }
@@ -272,12 +272,12 @@ final class FileEndpoint implements LoggerAwareInterface
     {
         if (!str_contains($request->getHeaderLine('Content-Type'), 'json')) {
             $parsed = $request->getParsedBody();
-            if (is_array($parsed) && $parsed !== []) {
+            if (is_array($parsed) && [] !== $parsed) {
                 return $parsed;
             }
         }
 
-        $decoded = json_decode((string)$request->getBody(), true);
+        $decoded = json_decode((string) $request->getBody(), true);
 
         return is_array($decoded) ? $decoded : [];
     }
@@ -286,7 +286,7 @@ final class FileEndpoint implements LoggerAwareInterface
     {
         $uploads = $request->getUploadedFiles();
 
-        while (is_array($uploads) && $uploads !== []) {
+        while (is_array($uploads) && [] !== $uploads) {
             $uploads = reset($uploads);
         }
 
@@ -329,7 +329,7 @@ final class FileEndpoint implements LoggerAwareInterface
      * Logs the exception detail server-side and returns a generic 500 so
      * server paths and driver internals never reach the client.
      */
-    private function serverError(string $message, Exception $exception): ResponseInterface
+    private function serverError(string $message, \Exception $exception): ResponseInterface
     {
         $this->logger?->error('{message}: {detail}', [
             'message' => $message,
@@ -349,7 +349,7 @@ final class FileEndpoint implements LoggerAwareInterface
             return $uri;
         }
 
-        $tempPath = sys_get_temp_dir() . '/' . uniqid('upload_', true);
+        $tempPath = sys_get_temp_dir().'/'.uniqid('upload_', true);
         $uploadedFile->moveTo($tempPath);
 
         return $tempPath;
@@ -373,11 +373,11 @@ final class FileEndpoint implements LoggerAwareInterface
     {
         $path = trim($path, '/');
 
-        if ($path === '') {
+        if ('' === $path) {
             return $storage->getRootLevelFolder();
         }
 
-        $pathSegments = array_filter(explode('/', $path), static fn(string $s): bool => $s !== '');
+        $pathSegments = array_filter(explode('/', $path), static fn (string $s): bool => '' !== $s);
 
         if (empty($pathSegments)) {
             return $storage->getRootLevelFolder();
@@ -408,7 +408,7 @@ final class FileEndpoint implements LoggerAwareInterface
             $parentFolder = $folder->getParentFolder();
             $storage->deleteFolder($folder, true);
             $this->deleteEmptyFolders($storage, $parentFolder);
-        } catch (Exception) {
+        } catch (\Exception) {
             // Silent fail - folder cleanup is non-critical
         }
     }

@@ -35,12 +35,11 @@ final class AuthEndpoint
     private const TABLE_FRONTEND_USERS = 'fe_users';
 
     public function __construct(
-        private readonly TokenService           $tokenService,
-        private readonly ConnectionPool         $connectionPool,
-        private readonly PasswordHashFactory    $passwordHashFactory,
+        private readonly TokenService $tokenService,
+        private readonly ConnectionPool $connectionPool,
+        private readonly PasswordHashFactory $passwordHashFactory,
         private readonly CachingFrameworkStorage $rateLimiterStorage,
-    )
-    {
+    ) {
     }
 
     /**
@@ -61,15 +60,15 @@ final class AuthEndpoint
             );
         }
 
-        $body = json_decode((string)$request->getBody(), true);
-        $username = is_array($body) ? (string)($body['username'] ?? '') : '';
-        $password = is_array($body) ? (string)($body['password'] ?? '') : '';
+        $body = json_decode((string) $request->getBody(), true);
+        $username = is_array($body) ? (string) ($body['username'] ?? '') : '';
+        $password = is_array($body) ? (string) ($body['password'] ?? '') : '';
 
-        $user = $username !== '' && $password !== ''
+        $user = '' !== $username && '' !== $password
             ? $this->verifyCredentials($username, $password)
             : null;
 
-        if ($user === null) {
+        if (null === $user) {
             return new JsonResponse(
                 [
                     'status' => 403,
@@ -84,16 +83,16 @@ final class AuthEndpoint
         // repeated failed attempts, never legitimate connector traffic
         $limiter->reset();
 
-        $lastLogin = (int)($GLOBALS['EXEC_TIME'] ?? time());
-        $this->updateLastLogin((int)$user['uid'], $lastLogin);
+        $lastLogin = (int) ($GLOBALS['EXEC_TIME'] ?? time());
+        $this->updateLastLogin((int) $user['uid'], $lastLogin);
 
         return new JsonResponse([
-            'uid' => (int)$user['uid'],
-            'username' => (string)$user['username'],
-            'usergroup' => GeneralUtility::intExplode(',', (string)$user['usergroup'], true),
-            'token' => $this->tokenService->issue((int)$user['uid'], (string)$user['password']),
-            'first_name' => (string)($user['first_name'] ?? ''),
-            'last_name' => (string)($user['last_name'] ?? ''),
+            'uid' => (int) $user['uid'],
+            'username' => (string) $user['username'],
+            'usergroup' => GeneralUtility::intExplode(',', (string) $user['usergroup'], true),
+            'token' => $this->tokenService->issue((int) $user['uid'], (string) $user['password']),
+            'first_name' => (string) ($user['first_name'] ?? ''),
+            'last_name' => (string) ($user['last_name'] ?? ''),
             'lastlogin' => $lastLogin,
         ]);
     }
@@ -184,16 +183,17 @@ final class AuthEndpoint
             } catch (InvalidPasswordHashException) {
                 // timing equalization only - a broken hash config fails the real check too
             }
+
             return null;
         }
 
         try {
-            $hashInstance = $this->passwordHashFactory->get((string)$row['password'], 'FE');
+            $hashInstance = $this->passwordHashFactory->get((string) $row['password'], 'FE');
         } catch (InvalidPasswordHashException) {
             return null;
         }
 
-        return $hashInstance->checkPassword($password, (string)$row['password']) ? $row : null;
+        return $hashInstance->checkPassword($password, (string) $row['password']) ? $row : null;
     }
 
     /**
@@ -203,7 +203,7 @@ final class AuthEndpoint
      */
     private function createRestrictedQueryBuilder(): QueryBuilder
     {
-        $accessTime = (int)($GLOBALS['EXEC_TIME'] ?? time());
+        $accessTime = (int) ($GLOBALS['EXEC_TIME'] ?? time());
         $queryBuilder = $this->connectionPool->getQueryBuilderForTable(self::TABLE_FRONTEND_USERS);
         $queryBuilder->getRestrictions()
             ->removeAll()
