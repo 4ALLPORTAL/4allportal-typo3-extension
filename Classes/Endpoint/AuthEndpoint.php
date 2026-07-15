@@ -8,6 +8,7 @@ use Doctrine\DBAL\Exception;
 use Fourallportal\Fourallportalext\Service\TokenService;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use Symfony\Component\RateLimiter\RateLimiterFactory as SymfonyRateLimiterFactory;
 use TYPO3\CMS\Core\Crypto\PasswordHashing\InvalidPasswordHashException;
 use TYPO3\CMS\Core\Crypto\PasswordHashing\PasswordHashFactory;
 use TYPO3\CMS\Core\Database\Connection;
@@ -18,7 +19,8 @@ use TYPO3\CMS\Core\Database\Query\Restriction\EndTimeRestriction;
 use TYPO3\CMS\Core\Database\Query\Restriction\HiddenRestriction;
 use TYPO3\CMS\Core\Database\Query\Restriction\StartTimeRestriction;
 use TYPO3\CMS\Core\Http\JsonResponse;
-use TYPO3\CMS\Core\RateLimiter\RateLimiterFactory;
+use TYPO3\CMS\Core\Http\NormalizedParams;
+use TYPO3\CMS\Core\RateLimiter\Storage\CachingFrameworkStorage;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 /**
@@ -33,10 +35,10 @@ final class AuthEndpoint
     private const TABLE_FRONTEND_USERS = 'fe_users';
 
     public function __construct(
-        private readonly TokenService        $tokenService,
-        private readonly ConnectionPool      $connectionPool,
-        private readonly PasswordHashFactory $passwordHashFactory,
-        private readonly RateLimiterFactory  $rateLimiterFactory,
+        private readonly TokenService           $tokenService,
+        private readonly ConnectionPool         $connectionPool,
+        private readonly PasswordHashFactory    $passwordHashFactory,
+        private readonly CachingFrameworkStorage $rateLimiterStorage,
     )
     {
     }
@@ -46,12 +48,7 @@ final class AuthEndpoint
      */
     public function handle(ServerRequestInterface $request): ResponseInterface
     {
-        $limiter = $this->rateLimiterFactory->createRequestBasedLimiter($request, [
-            'id' => 'fourallportal-api-auth',
-            'policy' => 'sliding_window',
-            'limit' => 20,
-            'interval' => '5 minutes',
-        ]);
+        $limiter = $this->createRateLimiter($request);
 
         if (!$limiter->consume()->isAccepted()) {
             return new JsonResponse(
@@ -99,6 +96,30 @@ final class AuthEndpoint
             'last_name' => (string)($user['last_name'] ?? ''),
             'lastlogin' => $lastLogin,
         ]);
+    }
+
+    /**
+     * Builds a per-IP sliding-window limiter directly on top of Symfony's
+     * factory and the core caching-framework storage. This deliberately avoids
+     * TYPO3's RateLimiterFactory wrapper, whose API differs between v13.4 and
+     * v14 (createRequestBasedLimiter() exists on v14 only) and is @internal.
+     */
+    private function createRateLimiter(ServerRequestInterface $request): \Symfony\Component\RateLimiter\LimiterInterface
+    {
+        $factory = new SymfonyRateLimiterFactory(
+            [
+                'id' => 'fourallportal-api-auth',
+                'policy' => 'sliding_window',
+                'limit' => 20,
+                'interval' => '5 minutes',
+            ],
+            $this->rateLimiterStorage
+        );
+
+        $normalizedParams = $request->getAttribute('normalizedParams')
+            ?? NormalizedParams::createFromRequest($request);
+
+        return $factory->create($normalizedParams->getRemoteAddress());
     }
 
     /**
