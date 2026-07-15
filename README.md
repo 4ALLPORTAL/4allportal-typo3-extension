@@ -73,6 +73,28 @@ field mapping, download profiles and sharing triggers) are available in the
 Version 1.x relied on the third-party extension `nng/nnrestapi`; since 2.0 the extension is
 dependency-free apart from TYPO3 itself.
 
+## Releasing
+
+Releases are driven by git tags following [semantic versioning](https://semver.org). Bump the
+version in both `composer.json` and `ext_emconf.php` (they must match), commit, then tag:
+
+```bash
+git tag 2.0.0 && git push origin 2.0.0
+```
+
+- **Packagist** picks up the new tag automatically via its GitHub webhook and publishes the
+  version - no manual step. Consumers then get it through `composer require`.
+- **TER** (TYPO3 Extension Repository) needs an upload archive. Build it from the tag:
+
+  ```bash
+  composer ter:zip 2.0.0
+  ```
+
+  This writes `Build/dist/fourallportal_typo3_extension_<version>.zip` (with `ext_emconf.php`
+  at the root, dev files excluded) ready to upload at
+  [extensions.typo3.org](https://extensions.typo3.org/). The command refuses to build if the
+  `composer.json` and `ext_emconf.php` versions disagree.
+
 ## License
 
 [MIT](LICENSE)
