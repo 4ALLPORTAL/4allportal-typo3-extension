@@ -84,9 +84,11 @@ final class TokenService
 
     private function passwordFingerprint(string $passwordHash): string
     {
-        // derive a short, non-reversible fingerprint - the raw hash never
-        // travels inside the token
-        return substr(hash('sha256', $passwordHash), 0, 16);
+        // keyed HMAC (encryption key + context) so the fingerprint in the
+        // readable token payload leaks nothing about the stored password hash
+        $secret = ($GLOBALS['TYPO3_CONF_VARS']['SYS']['encryptionKey'] ?? '') . self::HMAC_CONTEXT;
+
+        return substr(hash_hmac('sha256', $passwordHash, $secret), 0, 32);
     }
 
     private function base64UrlEncode(string $value): string
