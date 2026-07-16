@@ -3,17 +3,33 @@
   "type": "typo3-cms-extension",
   "description": "This TYPO3 extension enables the 4allportal-typo3-connector to send files from 4ALLPORTAL to TYPO3.",
   "authors": [],
-  "version": "1.0.2",
+  "version": "2.0.0",
   "license": "MIT",
   "require": {
-    "typo3/cms-core": "^13.0",
-    "nng/nnrestapi": "^13.0 || dev-13*",
-    "nng/nnhelpers": "^13.0 || dev-13*"
+    "php": ">=8.2",
+    "typo3/cms-core": "^13.4 || ^14.0",
+    "typo3/cms-frontend": "^13.4 || ^14.0"
+  },
+  "require-dev": {
+    "typo3/cms-backend": "^13.4 || ^14.0",
+    "typo3/cms-fluid": "^13.4 || ^14.0",
+    "phpunit/phpunit": "^11",
+    "phpmd/phpmd": "^2.15",
+    "laravel/pint": "^1.29"
   },
   "autoload": {
     "psr-4": {
       "Fourallportal\\Fourallportalext\\": "Classes"
     }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Fourallportal\\Fourallportalext\\Tests\\": "Tests"
+    }
+  },
+  "scripts": {
+    "test:unit": "phpunit -c Build/phpunit/UnitTests.xml",
+    "ter:zip": "Build/Scripts/create-ter-archive.sh"
   },
   "extra": {
     "typo3/cms": {
@@ -25,6 +41,9 @@
     "allow-plugins": {
       "typo3/cms-composer-installers": true,
       "typo3/class-alias-loader": true
+    },
+    "platform": {
+      "php": "8.2.0"
     }
   }
 }

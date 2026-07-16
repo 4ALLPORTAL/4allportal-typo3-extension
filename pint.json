@@ -1,0 +1,8 @@
+{
+    "preset": "symfony",
+    "exclude": [
+        "public",
+        "var",
+        "vendor"
+    ]
+}

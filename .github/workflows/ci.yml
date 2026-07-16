@@ -1,0 +1,103 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint & code style
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: intl, mbstring, pdo, pdo_sqlite, sodium, dom, xml
+          coverage: none
+          tools: composer:v2
+
+      - name: Validate composer.json
+        run: composer validate --no-check-publish
+
+      - name: Install dependencies
+        run: composer install --no-interaction --no-progress
+
+      - name: PHP syntax check
+        run: find Classes Tests -name '*.php' -print0 | xargs -0 -n1 -P4 php -l
+
+      - name: Code style (Pint)
+        run: vendor/bin/pint --test
+
+  security:
+    name: Security
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # full history so the secret scan covers every commit
+          fetch-depth: 0
+
+      - name: Secret scan (gitleaks)
+        run: |
+          docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:latest \
+            detect --source=/repo --redact --no-banner
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: intl, mbstring, pdo, pdo_sqlite, sodium, dom, xml
+          coverage: none
+          tools: composer:v2
+
+      - name: Audit dependencies for known vulnerabilities
+        run: composer audit --locked
+
+  test:
+    name: Tests (PHP ${{ matrix.php }}, TYPO3 ${{ matrix.typo3 }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { php: '8.2', typo3: '^13.4' }
+          - { php: '8.3', typo3: '^13.4' }
+          - { php: '8.4', typo3: '^13.4' }
+          - { php: '8.3', typo3: '^14.0' }
+          - { php: '8.4', typo3: '^14.0' }
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: intl, mbstring, pdo, pdo_sqlite, sodium, dom, xml
+          coverage: none
+          tools: composer:v2
+
+      - name: Pin TYPO3 ${{ matrix.typo3 }}
+        run: |
+          # resolve against the real runtime PHP, not the committed lock's
+          # 8.2 baseline, so TYPO3 14 (which needs PHP 8.3+) stays installable
+          composer config --unset platform.php
+          composer require --no-update --no-interaction \
+            "typo3/cms-core:${{ matrix.typo3 }}" \
+            "typo3/cms-frontend:${{ matrix.typo3 }}"
+          composer require --no-update --dev --no-interaction \
+            "typo3/cms-backend:${{ matrix.typo3 }}" \
+            "typo3/cms-fluid:${{ matrix.typo3 }}"
+
+      - name: Install dependencies
+        run: composer update --no-interaction --no-progress --prefer-dist
+
+      - name: Unit tests
+        run: composer test:unit
