@@ -93,4 +93,9 @@ version in both `composer.json` and `ext_emconf.php` (they must match), commit, 
 
 ## License
 
-[MIT](LICENSE)
+Copyright (c) 2026 4ALLPORTAL GmbH
+
+Licensed under the GNU General Public License, version 2 or (at your option) any later
+version. See [LICENSE](LICENSE) for the full text.
+
+SPDX-License-Identifier: `GPL-2.0-or-later`
