@@ -14,7 +14,7 @@
     "typo3/cms-backend": "^13.4 || ^14.0",
     "typo3/cms-fluid": "^13.4 || ^14.0",
     "phpunit/phpunit": "^11",
-    "phpmd/phpmd": "^2.15",
+    "phpmd/phpmd": "^3.0",
     "laravel/pint": "^1.29"
   },
   "autoload": {
