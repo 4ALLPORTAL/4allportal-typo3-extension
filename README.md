@@ -59,6 +59,12 @@ as `fourallportal_typo3_extension`.
 The API requires at least one frontend user (`fe_users` record) whose credentials are
 configured in the 4ALLPORTAL connector.
 
+Every active frontend user can authenticate against the API. If the site has other frontend
+logins (customer areas, communities, ...), put the connector account into a dedicated frontend
+user group and enter its uid under *Admin Tools > Settings > Extension Configuration >
+fourallportal_typo3_extension > Allowed frontend user groups* (comma-separated for several
+groups). Only direct members of these groups can then use the API.
+
 ## Documentation
 
 Full installation and configuration guides (including the 4ALLPORTAL side: connector setup,
