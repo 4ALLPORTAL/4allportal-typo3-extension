@@ -92,8 +92,10 @@ version in both `composer.json` and `ext_emconf.php` (they must match), commit, 
   [extensions.typo3.org](https://extensions.typo3.org/). The command refuses to build if the
   `composer.json` and `ext_emconf.php` versions disagree.
 - **GitHub release**: publishing a release for the tag triggers the `Release` workflow, which
-  attaches the TER archive and a CycloneDX SBOM (`*.cdx.json`, runtime dependencies only) and
-  signs build provenance and SBOM attestations for the archive. The SBOM is not committed to the
+  attaches the TER archive and a CycloneDX SBOM (`*.cdx.json`, runtime dependencies as locked
+  and tested for the release) and signs build provenance and SBOM attestations for the
+  archive. The workflow fails if the tag does not match the `composer.json` version. The SBOM
+  is not committed to the
   repository, since it would only duplicate `composer.lock` and drift from it. See
   [SECURITY.md](SECURITY.md#verifying-releases) for verification.
 
