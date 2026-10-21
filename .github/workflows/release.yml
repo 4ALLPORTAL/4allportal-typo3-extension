@@ -1,0 +1,82 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  assets:
+    name: Build, SBOM & attest
+    runs-on: ubuntu-latest
+    permissions:
+      # upload release assets
+      contents: write
+      # sign attestations via Sigstore
+      id-token: write
+      attestations: write
+    env:
+      TAG: ${{ github.event.release.tag_name }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: '8.3'
+          coverage: none
+          tools: composer:v2
+
+      # archive name comes from composer.json, SBOM name from the tag; both must agree
+      - name: Resolve version
+        run: |
+          version=$(jq -r .version composer.json)
+          if [ "${TAG#v}" != "$version" ]; then
+            echo "::error::tag $TAG does not match composer.json version $version"
+            exit 1
+          fi
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+
+      - name: Build TER archive
+        run: Build/Scripts/create-ter-archive.sh "$TAG"
+
+      # the SBOM records the runtime dependency set resolved in composer.lock that
+      # this release was tested against; the archive itself ships no dependencies
+      # and consumers resolve their own versions within the composer.json constraints
+      - name: Generate SBOM (CycloneDX)
+        run: |
+          composer global config --no-interaction allow-plugins.cyclonedx/cyclonedx-php-composer true
+          composer global require --no-interaction --no-progress cyclonedx/cyclonedx-php-composer:6.2.0
+          composer CycloneDX:make-sbom --omit=dev --output-format=JSON --spec-version=1.6 \
+            --validate --mc-version="$VERSION" \
+            --output-file="Build/dist/fourallportal_typo3_extension_${VERSION}.cdx.json"
+
+      - name: Attest build provenance
+        id: provenance
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: Build/dist/*.zip
+
+      - name: Attest SBOM
+        id: sbom
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: Build/dist/*.zip
+          sbom-path: Build/dist/fourallportal_typo3_extension_${{ env.VERSION }}.cdx.json
+
+      # attach the Sigstore bundles too, so the signatures are visible on the release
+      # itself (Scorecard Signed-Releases) and verifiable offline
+      - name: Upload release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PROVENANCE_BUNDLE: ${{ steps.provenance.outputs.bundle-path }}
+          SBOM_BUNDLE: ${{ steps.sbom.outputs.bundle-path }}
+        run: |
+          zip="Build/dist/fourallportal_typo3_extension_${VERSION}.zip"
+          cp "$PROVENANCE_BUNDLE" "$zip.provenance.sigstore.json"
+          cp "$SBOM_BUNDLE" "$zip.sbom.sigstore.json"
+          gh release upload "$TAG" "$zip" "$zip".*.sigstore.json Build/dist/*.cdx.json --clobber
