@@ -9,6 +9,7 @@
 [![TYPO3](https://img.shields.io/badge/TYPO3-13.4%20%7C%2014-ff8700?logo=typo3&logoColor=white)](https://extensions.typo3.org/extension/fourallportal_typo3_extension)
 [![License](https://img.shields.io/packagist/l/fourallportal/fourallportal-typo3-extension)](LICENSE)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/4ALLPORTAL/4allportal-typo3-extension/badge)](https://scorecard.dev/viewer/?uri=github.com/4ALLPORTAL/4allportal-typo3-extension)
+[![SLSA 2](https://slsa.dev/images/gh-badge-level2.svg)](SECURITY.md#verifying-releases)
 
 </div>
 
