@@ -50,6 +50,10 @@ final class TokenService
      */
     public function validate(string $token): ?array
     {
+        if ('' === $token) {
+            return null;
+        }
+
         try {
             $encodedPayload = $this->hashService->validateAndStripHmac($token, self::HMAC_CONTEXT);
         } catch (InvalidHashStringException) {
@@ -76,6 +80,8 @@ final class TokenService
     /**
      * Whether the token was issued for the given (current) password hash.
      * A password change rotates the hash and thus invalidates old tokens.
+     *
+     * @param array<string, mixed> $payload
      */
     public function matchesPassword(array $payload, string $currentPasswordHash): bool
     {

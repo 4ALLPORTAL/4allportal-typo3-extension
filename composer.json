@@ -15,7 +15,9 @@
     "typo3/cms-fluid": "^13.4 || ^14.0",
     "phpunit/phpunit": "^11",
     "phpmd/phpmd": "^3.0",
-    "laravel/pint": "^1.29"
+    "laravel/pint": "^1.29",
+    "phpstan/phpstan": "^2.3",
+    "jbelien/phpstan-sarif-formatter": "^1.2"
   },
   "autoload": {
     "psr-4": {
@@ -29,6 +31,7 @@
   },
   "scripts": {
     "test:unit": "phpunit -c Build/phpunit/UnitTests.xml",
+    "phpstan": "phpstan analyse --no-progress",
     "ter:zip": "Build/Scripts/create-ter-archive.sh"
   },
   "extra": {

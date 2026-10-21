@@ -76,6 +76,7 @@ final class TokenServiceTest extends TestCase
         $token = $this->subject->issue(42, self::PASSWORD_HASH);
         $payload = $this->subject->validate($token);
 
+        self::assertNotNull($payload);
         self::assertTrue($this->subject->matchesPassword($payload, self::PASSWORD_HASH));
     }
 
@@ -85,6 +86,7 @@ final class TokenServiceTest extends TestCase
         $token = $this->subject->issue(42, self::PASSWORD_HASH);
         $payload = $this->subject->validate($token);
 
+        self::assertNotNull($payload);
         self::assertFalse($this->subject->matchesPassword($payload, '$argon2i$v=19$m=65536,t=16,p=1$aDIFFERENThash'));
     }
 

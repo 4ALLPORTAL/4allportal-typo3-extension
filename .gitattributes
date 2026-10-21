@@ -10,3 +10,5 @@
 /.gitattributes     export-ignore
 /composer.lock      export-ignore
 /pint.json          export-ignore
+/phpstan.neon       export-ignore
+/CONTRIBUTING.md    export-ignore

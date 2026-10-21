@@ -31,6 +31,9 @@ jobs:
           results_file: results.sarif
           results_format: sarif
           publish_results: true
+          # .github/ is export-ignored, so the default archive mode would not see
+          # any workflow and skip the workflow-based checks
+          file_mode: git
 
       - name: Upload to code scanning
         uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
