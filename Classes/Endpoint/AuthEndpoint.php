@@ -143,6 +143,8 @@ final class AuthEndpoint
      * start/end time window. Used per request to re-validate token holders,
      * so disabling a user takes effect immediately despite stateless tokens.
      *
+     * @return array<string, mixed>|null
+     *
      * @throws Exception
      */
     public function findActiveUser(int $uid): ?array
@@ -161,6 +163,8 @@ final class AuthEndpoint
     }
 
     /**
+     * @return array<string, mixed>|null
+     *
      * @throws Exception
      */
     private function verifyCredentials(string $username, string $password): ?array

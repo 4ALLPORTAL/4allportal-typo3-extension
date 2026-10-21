@@ -164,6 +164,7 @@ final class FileEndpoint implements LoggerAwareInterface
                 $newFileName,
                 $this->resolveDuplicationBehavior($conflictStrategy)
             );
+            assert($renamedFile instanceof ResourceFile);
 
             return $this->jsonResponse([
                 'uid' => $renamedFile->getUid(),
@@ -208,6 +209,7 @@ final class FileEndpoint implements LoggerAwareInterface
                 $fileName,
                 $this->resolveDuplicationBehavior($conflictStrategy)
             );
+            assert($movedFile instanceof ResourceFile);
 
             $this->deleteEmptyFolders($storage, $oldParentFolder);
 
@@ -267,6 +269,8 @@ final class FileEndpoint implements LoggerAwareInterface
      * JSON bodies must be decoded from the raw body: the core request factory
      * runs parse_str() over PUT/PATCH/DELETE bodies, which turns a JSON string
      * into a garbage form array instead of leaving the parsed body empty.
+     *
+     * @return array<mixed>
      */
     private function parseBody(ServerRequestInterface $request): array
     {
@@ -293,6 +297,9 @@ final class FileEndpoint implements LoggerAwareInterface
         return $uploads instanceof UploadedFileInterface ? $uploads : null;
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     private function fileData(ResourceFile $file): array
     {
         return [
@@ -308,6 +315,9 @@ final class FileEndpoint implements LoggerAwareInterface
         ];
     }
 
+    /**
+     * @param array<string, mixed> $data
+     */
     private function jsonResponse(array $data, int $statusCode = 200): ResponseInterface
     {
         return new JsonResponse($data, $statusCode);

@@ -1,0 +1,14 @@
+parameters:
+  level: 8
+  paths:
+    - Classes
+    - Tests
+
+services:
+  # SARIF output for GitHub code scanning (--error-format=sarif)
+  errorFormatter.sarif:
+    class: PHPStanSarifErrorFormatter\SarifErrorFormatter
+    arguments:
+      relativePathHelper: @simpleRelativePathHelper
+      currentWorkingDirectory: %currentWorkingDirectory%
+      pretty: true
