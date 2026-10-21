@@ -8,6 +8,7 @@
 [![TER Downloads](https://img.shields.io/endpoint?url=https%3A%2F%2Ftypo3-badges.dev%2Fbadge%2Ffourallportal_typo3_extension%2Fdownloads%2Fshields.json)](https://extensions.typo3.org/extension/fourallportal_typo3_extension)
 [![TYPO3](https://img.shields.io/badge/TYPO3-13.4%20%7C%2014-ff8700?logo=typo3&logoColor=white)](https://extensions.typo3.org/extension/fourallportal_typo3_extension)
 [![License](https://img.shields.io/packagist/l/fourallportal/fourallportal-typo3-extension)](LICENSE)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/4ALLPORTAL/4allportal-typo3-extension/badge)](https://scorecard.dev/viewer/?uri=github.com/4ALLPORTAL/4allportal-typo3-extension)
 
 </div>
 
@@ -90,6 +91,11 @@ version in both `composer.json` and `ext_emconf.php` (they must match), commit, 
   at the root, dev files excluded) ready to upload at
   [extensions.typo3.org](https://extensions.typo3.org/). The command refuses to build if the
   `composer.json` and `ext_emconf.php` versions disagree.
+- **GitHub release**: publishing a release for the tag triggers the `Release` workflow, which
+  attaches the TER archive and a CycloneDX SBOM (`*.cdx.json`, runtime dependencies only) and
+  signs build provenance and SBOM attestations for the archive. The SBOM is not committed to the
+  repository, since it would only duplicate `composer.lock` and drift from it. See
+  [SECURITY.md](SECURITY.md#verifying-releases) for verification.
 
 ## License
 
