@@ -15,6 +15,11 @@ Report vulnerabilities privately via
 [GitHub Security Advisories](https://github.com/4ALLPORTAL/4allportal-typo3-extension/security/advisories/new).
 We acknowledge reports within a few working days and keep you informed until a fix is released.
 
+## Threat model
+
+Threats, trust boundaries, mitigations and known open findings are documented in the
+[threat model](docs/security/threat-model.md).
+
 ## Verifying releases
 
 Every GitHub release ships the TER archive together with a CycloneDX SBOM (`*.cdx.json`).
