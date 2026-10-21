@@ -159,12 +159,12 @@ final class FileEndpoint implements LoggerAwareInterface
             $fileObject = $this->resourceFactory->getFileObject($uid);
             $previousName = $fileObject->getName();
 
-            /** @var ResourceFile $renamedFile */
             $renamedFile = $fileObject->getStorage()->renameFile(
                 $fileObject,
                 $newFileName,
                 $this->resolveDuplicationBehavior($conflictStrategy)
             );
+            assert($renamedFile instanceof ResourceFile);
 
             return $this->jsonResponse([
                 'uid' => $renamedFile->getUid(),
@@ -204,12 +204,12 @@ final class FileEndpoint implements LoggerAwareInterface
 
             $targetFolder = $this->getOrCreateFolder($storage, $targetPath);
 
-            /** @var ResourceFile $movedFile */
             $movedFile = $fileObject->moveTo(
                 $targetFolder,
                 $fileName,
                 $this->resolveDuplicationBehavior($conflictStrategy)
             );
+            assert($movedFile instanceof ResourceFile);
 
             $this->deleteEmptyFolders($storage, $oldParentFolder);
 
