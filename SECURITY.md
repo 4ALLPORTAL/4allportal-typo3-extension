@@ -17,11 +17,14 @@ We acknowledge reports within a few working days and keep you informed until a f
 
 ## Verifying releases
 
-Every GitHub release ships the TER archive together with a CycloneDX SBOM (`*.cdx.json`). Both are
-covered by signed build provenance and SBOM attestations, which can
-be verified with the GitHub CLI:
+Every GitHub release ships the TER archive together with a CycloneDX SBOM (`*.cdx.json`). The
+archive carries signed build provenance and SBOM attestations, which can be verified with the
+GitHub CLI after downloading it from the release:
 
 ```bash
+gh release download v<version> --repo 4ALLPORTAL/4allportal-typo3-extension --pattern '*.zip'
 gh attestation verify fourallportal_typo3_extension_<version>.zip \
   --repo 4ALLPORTAL/4allportal-typo3-extension
 ```
+
+Releases up to and including 2.0.1 have no attestations.
