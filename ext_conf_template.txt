@@ -1,0 +1,2 @@
+# cat=security; type=string; label=Allowed frontend user groups: Comma-separated uids of fe_groups whose members may use the API. Leave empty to allow every active frontend user (only safe if the site has no other frontend logins).
+allowedFrontendUserGroups =

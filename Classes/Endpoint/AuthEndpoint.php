@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Fourallportal\Fourallportalext\Endpoint;
 
 use Doctrine\DBAL\Exception;
+use Fourallportal\Fourallportalext\Service\FrontendUserGroupPolicy;
 use Fourallportal\Fourallportalext\Service\TokenService;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -39,6 +40,7 @@ final class AuthEndpoint
         private readonly ConnectionPool $connectionPool,
         private readonly PasswordHashFactory $passwordHashFactory,
         private readonly CachingFrameworkStorage $rateLimiterStorage,
+        private readonly FrontendUserGroupPolicy $userGroupPolicy,
     ) {
     }
 
@@ -140,8 +142,9 @@ final class AuthEndpoint
 
     /**
      * Fetches an fe_user that is neither deleted, disabled nor outside its
-     * start/end time window. Used per request to re-validate token holders,
-     * so disabling a user takes effect immediately despite stateless tokens.
+     * start/end time window and belongs to an allowed group. Used per request
+     * to re-validate token holders, so disabling a user or removing it from
+     * the allowed groups takes effect immediately despite stateless tokens.
      *
      * @return array<string, mixed>|null
      *
@@ -159,7 +162,7 @@ final class AuthEndpoint
             ->executeQuery()
             ->fetchAssociative();
 
-        return $row ?: null;
+        return $row && $this->userGroupPolicy->allows($row) ? $row : null;
     }
 
     /**
@@ -197,7 +200,10 @@ final class AuthEndpoint
             return null;
         }
 
-        return $hashInstance->checkPassword($password, (string) $row['password']) ? $row : null;
+        // group check after the password check, so a wrong group answers
+        // exactly like wrong credentials and reveals nothing about membership
+        return $hashInstance->checkPassword($password, (string) $row['password'])
+            && $this->userGroupPolicy->allows($row) ? $row : null;
     }
 
     /**

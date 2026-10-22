@@ -9,6 +9,7 @@
 [![TYPO3](https://img.shields.io/badge/TYPO3-13.4%20%7C%2014-ff8700?logo=typo3&logoColor=white)](https://extensions.typo3.org/extension/fourallportal_typo3_extension)
 [![License](https://img.shields.io/packagist/l/fourallportal/fourallportal-typo3-extension)](LICENSE)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/4ALLPORTAL/4allportal-typo3-extension/badge)](https://scorecard.dev/viewer/?uri=github.com/4ALLPORTAL/4allportal-typo3-extension)
+[![SLSA 2](https://slsa.dev/images/gh-badge-level2.svg)](SECURITY.md#verifying-releases)
 
 </div>
 
@@ -57,6 +58,12 @@ as `fourallportal_typo3_extension`.
 
 The API requires at least one frontend user (`fe_users` record) whose credentials are
 configured in the 4ALLPORTAL connector.
+
+Every active frontend user can authenticate against the API. If the site has other frontend
+logins (customer areas, communities, ...), put the connector account into a dedicated frontend
+user group and enter its uid under *Admin Tools > Settings > Extension Configuration >
+fourallportal_typo3_extension > Allowed frontend user groups* (comma-separated for several
+groups). Only direct members of these groups can then use the API.
 
 ## Documentation
 
