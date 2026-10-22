@@ -9,7 +9,7 @@
 [![TYPO3](https://img.shields.io/badge/TYPO3-13.4%20%7C%2014-ff8700?logo=typo3&logoColor=white)](https://extensions.typo3.org/extension/fourallportal_typo3_extension)
 [![License](https://img.shields.io/packagist/l/fourallportal/fourallportal-typo3-extension)](LICENSE)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/4ALLPORTAL/4allportal-typo3-extension/badge)](https://scorecard.dev/viewer/?uri=github.com/4ALLPORTAL/4allportal-typo3-extension)
-[![SLSA 2](https://slsa.dev/images/gh-badge-level2.svg)](SECURITY.md#verifying-releases)
+[![SLSA 3](https://slsa.dev/images/gh-badge-level3.svg)](SECURITY.md#verifying-releases)
 
 </div>
 
@@ -88,23 +88,22 @@ version in both `composer.json` and `ext_emconf.php` (they must match), commit, 
 
 - **Packagist** picks up the new tag automatically via its GitHub webhook and publishes the
   version - no manual step. Consumers then get it through `composer require`.
-- **TER** (TYPO3 Extension Repository) needs an upload archive. Build it from the tag:
+- **GitHub release + TER**: publishing a GitHub release for the tag triggers the `Release`
+  workflow. It fails if the tag does not match the `composer.json` version, otherwise it
+  1. builds the TER archive from the tag and a CycloneDX SBOM (`*.cdx.json`, runtime
+     dependencies as locked and tested for the release),
+  2. attaches both to the release together with signed SBOM and build provenance attestations
+     and a [SLSA Build Level 3](https://slsa.dev/spec/v1.0/levels#build-l3) provenance
+     (`*.intoto.jsonl`),
+  3. uploads exactly this archive to the [TER](https://extensions.typo3.org/) (skipped for
+     pre-releases). The upload runs in the `ter` environment, which holds the
+     `TYPO3_API_TOKEN` secret.
 
-  ```bash
-  composer ter:zip v2.0.0
-  ```
+  See [SECURITY.md](SECURITY.md#verifying-releases) for verification. The SBOM is not
+  committed to the repository, since it would only duplicate `composer.lock` and drift from it.
 
-  This writes `Build/dist/fourallportal_typo3_extension_<version>.zip` (with `ext_emconf.php`
-  at the root, dev files excluded) ready to upload at
-  [extensions.typo3.org](https://extensions.typo3.org/). The command refuses to build if the
-  `composer.json` and `ext_emconf.php` versions disagree.
-- **GitHub release**: publishing a release for the tag triggers the `Release` workflow, which
-  attaches the TER archive and a CycloneDX SBOM (`*.cdx.json`, runtime dependencies as locked
-  and tested for the release) and signs build provenance and SBOM attestations for the
-  archive. The workflow fails if the tag does not match the `composer.json` version. The SBOM
-  is not committed to the
-  repository, since it would only duplicate `composer.lock` and drift from it. See
-  [SECURITY.md](SECURITY.md#verifying-releases) for verification.
+  For local testing, `composer ter:zip [git-ref]` builds the same archive into `Build/dist/`.
+  Never upload a locally built archive to the TER: it carries no provenance.
 
 ## License
 

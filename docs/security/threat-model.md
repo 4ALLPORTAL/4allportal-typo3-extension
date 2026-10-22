@@ -69,6 +69,7 @@ flowchart LR
   is known.
 - A6: On sites with frontend logins other than the connector account, the extension setting
   `allowedFrontendUserGroups` is set. Left empty, every active frontend user is an API user.
+- A7: The `ter` environment requires a reviewer before a TER upload runs.
 
 ## Threats and mitigations
 
@@ -77,23 +78,24 @@ incomplete, **Open** = known gap, see [Open findings](#open-findings).
 
 ### Spoofing
 
-| ID | Threat                                   | Mitigation                                                                                                                        | Status         |
-|----|------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------|----------------|
-| S1 | Password brute force on `/api/auth`      | Sliding-window limit of 20 attempts per IP and 5 minutes (`AuthEndpoint::createRateLimiter`)                                      | Partial (A5)   |
-| S2 | Username enumeration via response timing | Unknown users trigger a dummy hash computation (`AuthEndpoint::verifyCredentials`); identical error response                      | Mitigated      |
-| S3 | Forged token                             | HMAC signature with `encryptionKey` (`TokenService`); the password fingerprint additionally requires the stored password hash     | Mitigated (A3) |
+| ID | Threat                                   | Mitigation                                                                                                                                                   | Status         |
+|----|------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------|
+| S1 | Password brute force on `/api/auth`      | Sliding-window limit of 20 attempts per IP and 5 minutes (`AuthEndpoint::createRateLimiter`)                                                                 | Partial (A5)   |
+| S2 | Username enumeration via response timing | Unknown users trigger a dummy hash computation (`AuthEndpoint::verifyCredentials`); identical error response                                                 | Mitigated      |
+| S3 | Forged token                             | HMAC signature with `encryptionKey` (`TokenService`); the password fingerprint additionally requires the stored password hash                                | Mitigated (A3) |
 | S4 | Stolen token replayed                    | One-hour expiry; every request re-checks that the user is active, still in an allowed group and the password is unchanged (`ApiMiddleware::isAuthenticated`) | Partial        |
 
 ### Tampering
 
-| ID | Threat                                                       | Mitigation                                                                                                                        | Status         |
-|----|--------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------|----------------|
-| T1 | Path traversal via `targetPath`, `fileName` or `newFileName` | Folders are resolved segment by segment through FAL; FAL rejects `..` and `//` in identifiers                                     | Mitigated      |
-| T2 | Upload of executable code (e.g. `.php`)                      | FAL checks the file extension against `fileDenyPattern` on add, rename and move                                                   | Mitigated (A4) |
-| T3 | Writing outside configured storages                          | `storageUid < 1` is rejected, so the fallback storage rooted at the web root cannot be used (`FileEndpoint::upload`)              | Mitigated      |
-| T4 | Overwriting arbitrary metadata fields                        | Only `title`, `description`, `alternative`, `keywords` and `copyright` are written (`FileEndpoint::updateMetadata`)               | Mitigated      |
-| T5 | Stored XSS via metadata values                               | Values are stored as given; output escaping is the job of the rendering templates (Fluid escapes by default)                      | Partial        |
-| T6 | Tampered release archive                                     | Release workflow publishes signed build provenance and SBOM attestations, see [SECURITY.md](../../SECURITY.md#verifying-releases) | Mitigated      |
+| ID | Threat                                                       | Mitigation                                                                                                                                                                      | Status         |
+|----|--------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------|
+| T1 | Path traversal via `targetPath`, `fileName` or `newFileName` | Folders are resolved segment by segment through FAL; FAL rejects `..` and `//` in identifiers                                                                                   | Mitigated      |
+| T2 | Upload of executable code (e.g. `.php`)                      | FAL checks the file extension against `fileDenyPattern` on add, rename and move                                                                                                 | Mitigated (A4) |
+| T3 | Writing outside configured storages                          | `storageUid < 1` is rejected, so the fallback storage rooted at the web root cannot be used (`FileEndpoint::upload`)                                                            | Mitigated      |
+| T4 | Overwriting arbitrary metadata fields                        | Only `title`, `description`, `alternative`, `keywords` and `copyright` are written (`FileEndpoint::updateMetadata`)                                                             | Mitigated      |
+| T5 | Stored XSS via metadata values                               | Values are stored as given; output escaping is the job of the rendering templates (Fluid escapes by default)                                                                    | Partial        |
+| T6 | Tampered release archive                                     | SLSA Build L3 provenance and SBOM attestation per release; the pipeline uploads the attested archive to the TER itself, see [SECURITY.md](../../SECURITY.md#verifying-releases) | Mitigated      |
+| T7 | Leaked TER token used to publish a malicious version         | Token is only available to the TER upload job via the `ter` environment; required reviewers on that environment gate every upload                                               | Partial (A7)   |
 
 ### Repudiation
 
@@ -103,11 +105,11 @@ incomplete, **Open** = known gap, see [Open findings](#open-findings).
 
 ### Information disclosure
 
-| ID | Threat                                          | Mitigation                                                                                                                   | Status    |
-|----|-------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------|-----------|
-| I1 | Stack traces or server paths in error responses | Exceptions are logged server-side, clients receive a generic message (`FileEndpoint::serverError`, `ApiMiddleware::process`) | Mitigated |
-| I2 | Token payload reveals the password hash         | The payload carries only a keyed HMAC fingerprint of the hash (`TokenService::passwordFingerprint`)                          | Mitigated |
-| I3 | Reading files through the API as a regular frontend user | Only members of the allowed groups obtain and keep a token, see E1                                                  | Mitigated (A6) |
+| ID | Threat                                                   | Mitigation                                                                                                                   | Status         |
+|----|----------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------|----------------|
+| I1 | Stack traces or server paths in error responses          | Exceptions are logged server-side, clients receive a generic message (`FileEndpoint::serverError`, `ApiMiddleware::process`) | Mitigated      |
+| I2 | Token payload reveals the password hash                  | The payload carries only a keyed HMAC fingerprint of the hash (`TokenService::passwordFingerprint`)                          | Mitigated      |
+| I3 | Reading files through the API as a regular frontend user | Only members of the allowed groups obtain and keep a token, see E1                                                           | Mitigated (A6) |
 
 ### Denial of service
 
@@ -118,18 +120,18 @@ incomplete, **Open** = known gap, see [Open findings](#open-findings).
 
 ### Elevation of privilege
 
-| ID | Threat                                          | Mitigation                                                                                                                                       | Status    |
-|----|-------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------|-----------|
+| ID | Threat                                          | Mitigation                                                                                                                                                                                     | Status         |
+|----|-------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------|
 | E1 | Any active frontend user gains full file access | Tokens are issued to and re-validated for members of `allowedFrontendUserGroups` only (`FrontendUserGroupPolicy`); a user outside these groups gets the same response as for wrong credentials | Mitigated (A6) |
 
 ## Open findings
 
-| ID     | Risk   | Description                                                                                                                                          | Proposed treatment                                                                                                   |
-|--------|--------|------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------|
-| R1     | Medium | No audit trail for destructive operations.                                                                                                           | Log file operations with user uid, action and file identifier via the PSR-3 logger                                   |
-| D1     | Low    | Shared rate-limit bucket behind misconfigured proxies.                                                                                               | Document `reverseProxyIP` in the installation guide                                                                  |
-| D2     | Low    | No size limit of its own.                                                                                                                            | Accept; document reliance on PHP and storage limits                                                                  |
-| S4     | Low    | Tokens cannot be revoked individually before expiry, only by disabling the user or changing the password.                                            | Accept; one-hour lifetime keeps the window small                                                                     |
+| ID | Risk   | Description                                                                                               | Proposed treatment                                                                 |
+|----|--------|-----------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------|
+| R1 | Medium | No audit trail for destructive operations.                                                                | Log file operations with user uid, action and file identifier via the PSR-3 logger |
+| D1 | Low    | Shared rate-limit bucket behind misconfigured proxies.                                                    | Document `reverseProxyIP` in the installation guide                                |
+| D2 | Low    | No size limit of its own.                                                                                 | Accept; document reliance on PHP and storage limits                                |
+| S4 | Low    | Tokens cannot be revoked individually before expiry, only by disabling the user or changing the password. | Accept; one-hour lifetime keeps the window small                                   |
 
 ## Maintenance
 

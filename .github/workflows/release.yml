@@ -7,10 +7,15 @@ on:
 permissions:
   contents: read
 
+env:
+  EXTENSION_KEY: fourallportal_typo3_extension
+
 jobs:
-  assets:
+  build:
     name: Build, SBOM & attest
     runs-on: ubuntu-latest
+    outputs:
+      hashes: ${{ steps.hash.outputs.hashes }}
     permissions:
       # upload release assets
       contents: write
@@ -53,7 +58,7 @@ jobs:
           composer global require --no-interaction --no-progress cyclonedx/cyclonedx-php-composer:6.2.0
           composer CycloneDX:make-sbom --omit=dev --output-format=JSON --spec-version=1.6 \
             --validate --mc-version="$VERSION" \
-            --output-file="Build/dist/fourallportal_typo3_extension_${VERSION}.cdx.json"
+            --output-file="Build/dist/${EXTENSION_KEY}_${VERSION}.cdx.json"
 
       - name: Attest build provenance
         id: provenance
@@ -66,7 +71,7 @@ jobs:
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-path: Build/dist/*.zip
-          sbom-path: Build/dist/fourallportal_typo3_extension_${{ env.VERSION }}.cdx.json
+          sbom-path: Build/dist/${{ env.EXTENSION_KEY }}_${{ env.VERSION }}.cdx.json
 
       # attach the Sigstore bundles too, so the signatures are visible on the release
       # itself (Scorecard Signed-Releases) and verifiable offline
@@ -76,7 +81,63 @@ jobs:
           PROVENANCE_BUNDLE: ${{ steps.provenance.outputs.bundle-path }}
           SBOM_BUNDLE: ${{ steps.sbom.outputs.bundle-path }}
         run: |
-          zip="Build/dist/fourallportal_typo3_extension_${VERSION}.zip"
+          zip="Build/dist/${EXTENSION_KEY}_${VERSION}.zip"
           cp "$PROVENANCE_BUNDLE" "$zip.provenance.sigstore.json"
           cp "$SBOM_BUNDLE" "$zip.sbom.sigstore.json"
           gh release upload "$TAG" "$zip" "$zip".*.sigstore.json Build/dist/*.cdx.json --clobber
+
+      - name: Hash archive
+        id: hash
+        run: |
+          cd Build/dist
+          echo "hashes=$(sha256sum "${EXTENSION_KEY}_${VERSION}.zip" | base64 -w0)" >> "$GITHUB_OUTPUT"
+
+  provenance:
+    name: SLSA provenance
+    needs: [build]
+    permissions:
+      # read workflow info
+      actions: read
+      # sign the provenance via Sigstore
+      id-token: write
+      # attach the provenance to the release
+      contents: write
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0 # zizmor: ignore[unpinned-uses]
+    with:
+      base64-subjects: ${{ needs.build.outputs.hashes }}
+      upload-assets: true
+      upload-tag-name: ${{ github.event.release.tag_name }}
+
+  ter:
+    name: Publish to TER
+    needs: [build, provenance]
+    if: ${{ !github.event.release.prerelease }}
+    runs-on: ubuntu-latest
+    # holds the TYPO3_API_TOKEN secret; add required reviewers there to gate TER uploads
+    environment: ter
+    env:
+      TAG: ${{ github.event.release.tag_name }}
+      HASHES: ${{ needs.build.outputs.hashes }}
+    steps:
+      - name: Download attested archive
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "${EXTENSION_KEY}_*.zip"
+          echo "$HASHES" | base64 -d | sha256sum --check --strict
+
+      - name: Upload to TER
+        env:
+          TYPO3_API_TOKEN: ${{ secrets.TYPO3_API_TOKEN }}
+          RELEASE_URL: ${{ github.event.release.html_url }}
+        run: |
+          version="${TAG#v}"
+          zip="${EXTENSION_KEY}_${version}.zip"
+          curl --fail-with-body --silent --show-error \
+            -H "Authorization: Bearer $TYPO3_API_TOKEN" \
+            -F "description=Release notes: $RELEASE_URL" \
+            -F "gplCompliant=1" \
+            -F "sha256=$(sha256sum "$zip" | cut -d' ' -f1)" \
+            -F "sha512=$(sha512sum "$zip" | cut -d' ' -f1)" \
+            -F "file=@$zip;type=application/zip" \
+            "https://extensions.typo3.org/api/v1/extension/${EXTENSION_KEY}/${version}"
